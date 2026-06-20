@@ -8,6 +8,7 @@ export default function GuestPage() {
   const router = useRouter();
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
+  const [email, setEmail] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
@@ -26,22 +27,45 @@ export default function GuestPage() {
       setLoading(false);
       return;
     }
+    if (!email.trim() || !email.includes('@')) {
+      setError('Please enter a valid email address');
+      setLoading(false);
+      return;
+    }
 
-    // Create a temporary guest "session"
-    const guestUser = {
-      id: `GUEST-${Date.now()}`,
-      name: name.trim(),
-      role: 'student' as const,
-      phone: phone.trim(),
-    };
+    try {
+      // Authenticate via backend to get a real token for guest
+      const loginRes = await fetch('/api/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: 'guest', pin: 'guest' }),
+      });
+      const loginData = await loginRes.json();
 
-    // For guest, we generate a temporary JWT-like token on client
-    // In production, this would go through a guest registration endpoint
-    localStorage.setItem('user', JSON.stringify(guestUser));
-    localStorage.setItem('token', 'guest-token-' + Date.now());
-    localStorage.setItem('isGuest', 'true');
+      if (!loginData.success) {
+        setError(loginData.error || 'Guest session initialization failed');
+        setLoading(false);
+        return;
+      }
 
-    router.push('/booking');
+      // Store authentic guest details
+      const guestUser = {
+        id: `GUEST-${Date.now()}`,
+        name: name.trim(),
+        role: 'student' as const,
+        phone: phone.trim(),
+        email: email.trim(),
+      };
+
+      localStorage.setItem('user', JSON.stringify(guestUser));
+      localStorage.setItem('token', loginData.data.token);
+      localStorage.setItem('isGuest', 'true');
+
+      router.push('/booking');
+    } catch {
+      setError('Failed to connect to authentication server. Please try again.');
+      setLoading(false);
+    }
   };
 
   return (
@@ -94,10 +118,24 @@ export default function GuestPage() {
             />
           </div>
 
+          <div>
+            <label htmlFor="guest-email" className="input-label">Email Address</label>
+            <input
+              id="guest-email"
+              type="email"
+              className="input"
+              placeholder="you@example.com"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              required
+              autoComplete="email"
+            />
+          </div>
+
           <button
             type="submit"
             className="btn btn-primary btn-lg w-full"
-            disabled={loading || name.length < 2 || phone.replace(/\D/g, '').length < 10}
+            disabled={loading || name.length < 2 || phone.replace(/\D/g, '').length < 10 || !email.includes('@')}
             id="guest-submit"
           >
             {loading ? (

@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import { QRCodeSVG } from 'qrcode.react';
 import type { MenuItem, MealType } from '@/lib/types';
 
 // Actual IIST Cafeteria time slots
@@ -64,6 +65,12 @@ export default function BookingPage() {
   const [error, setError] = useState('');
   const [user, setUser] = useState<{ id: string; name: string; role: string } | null>(null);
 
+  // Payment states
+  const [paymentMethod, setPaymentMethod] = useState<'phonepe' | 'paytm' | 'bharatpay' | 'counter'>('counter');
+  const [showPaymentModal, setShowPaymentModal] = useState(false);
+  const [paymentCountdown, setPaymentCountdown] = useState(5);
+  const [paymentSimulating, setPaymentSimulating] = useState(false);
+
   const todayDate = getTodayDateString();
   const todayFormatted = new Date().toLocaleDateString('en-IN', {
     weekday: 'long',
@@ -107,7 +114,23 @@ export default function BookingPage() {
     }
   }, [mealType]);
 
-  const handleBook = async () => {
+  useEffect(() => {
+    let timer: NodeJS.Timeout;
+    if (showPaymentModal && paymentCountdown > 0) {
+      timer = setTimeout(() => {
+        setPaymentCountdown((prev) => prev - 1);
+      }, 1000);
+    } else if (showPaymentModal && paymentCountdown === 0) {
+      setPaymentSimulating(false);
+      timer = setTimeout(() => {
+        const methodLabel = paymentMethod === 'phonepe' ? 'PhonePe' : paymentMethod === 'paytm' ? 'Paytm' : 'BharatPe';
+        handleBook(methodLabel, 'Paid');
+      }, 600);
+    }
+    return () => clearTimeout(timer);
+  }, [showPaymentModal, paymentCountdown]);
+
+  const handleBook = async (method: string = 'Pay at Counter', status: string = 'Pending') => {
     setError('');
     setLoading(true);
     try {
@@ -123,6 +146,8 @@ export default function BookingPage() {
           item_name: selectedItem?.name,
           booking_date: todayDate,
           booking_time: selectedTime,
+          payment_method: method,
+          payment_status: status,
         }),
       });
 
@@ -131,6 +156,7 @@ export default function BookingPage() {
       if (!data.success) {
         setError(data.error || 'Booking failed');
         setLoading(false);
+        setShowPaymentModal(false);
         return;
       }
 
@@ -142,12 +168,25 @@ export default function BookingPage() {
         booking_date: todayDate,
         booking_time: selectedTime,
         user_name: user?.name,
+        payment_method: method,
+        payment_status: status,
       }));
 
       router.push('/confirmation');
     } catch {
       setError('Something went wrong. Please try again.');
       setLoading(false);
+      setShowPaymentModal(false);
+    }
+  };
+
+  const handleConfirmBookingClick = () => {
+    if (paymentMethod === 'counter') {
+      handleBook('Pay at Counter', 'Pending');
+    } else {
+      setShowPaymentModal(true);
+      setPaymentCountdown(5);
+      setPaymentSimulating(true);
     }
   };
 
@@ -405,7 +444,63 @@ export default function BookingPage() {
                     {TIME_SLOTS.find((t) => t.value === selectedTime)?.label}
                   </span>
                 </div>
-                <div className="flex justify-between items-center">
+                
+                {/* Payment Method Selector */}
+                <div className="py-4 border-b border-[var(--border)]">
+                  <span className="text-[var(--text-secondary)] block mb-3 text-sm font-semibold text-left">Select Payment Method</span>
+                  <div className="grid grid-cols-2 gap-3">
+                    <button
+                      onClick={() => setPaymentMethod('phonepe')}
+                      className={`p-3 rounded-xl border-2 text-left flex flex-col justify-between transition-all cursor-pointer ${
+                        paymentMethod === 'phonepe' ? 'border-violet-500 bg-violet-500/10' : 'border-[var(--border)] hover:border-violet-400'
+                      }`}
+                    >
+                      <span className="text-lg mb-1">📱</span>
+                      <div>
+                        <p className="font-bold text-xs">PhonePe</p>
+                        <p className="text-[var(--text-tertiary)] text-[10px]">Mock UPI Gateway</p>
+                      </div>
+                    </button>
+                    <button
+                      onClick={() => setPaymentMethod('paytm')}
+                      className={`p-3 rounded-xl border-2 text-left flex flex-col justify-between transition-all cursor-pointer ${
+                        paymentMethod === 'paytm' ? 'border-sky-500 bg-sky-500/10' : 'border-[var(--border)] hover:border-sky-400'
+                      }`}
+                    >
+                      <span className="text-lg mb-1">💳</span>
+                      <div>
+                        <p className="font-bold text-xs">Paytm</p>
+                        <p className="text-[var(--text-tertiary)] text-[10px]">Fast UPI checkout</p>
+                      </div>
+                    </button>
+                    <button
+                      onClick={() => setPaymentMethod('bharatpay')}
+                      className={`p-3 rounded-xl border-2 text-left flex flex-col justify-between transition-all cursor-pointer ${
+                        paymentMethod === 'bharatpay' ? 'border-emerald-500 bg-emerald-500/10' : 'border-[var(--border)] hover:border-emerald-400'
+                      }`}
+                    >
+                      <span className="text-lg mb-1">🌀</span>
+                      <div>
+                        <p className="font-bold text-xs">BharatPe</p>
+                        <p className="text-[var(--text-tertiary)] text-[10px]">Scan & Pay QR</p>
+                      </div>
+                    </button>
+                    <button
+                      onClick={() => setPaymentMethod('counter')}
+                      className={`p-3 rounded-xl border-2 text-left flex flex-col justify-between transition-all cursor-pointer ${
+                        paymentMethod === 'counter' ? 'border-amber-500 bg-amber-500/10' : 'border-[var(--border)] hover:border-amber-400'
+                      }`}
+                    >
+                      <span className="text-lg mb-1">💵</span>
+                      <div>
+                        <p className="font-bold text-xs">Pay at Counter</p>
+                        <p className="text-[var(--text-tertiary)] text-[10px]">Pay Cash at counter</p>
+                      </div>
+                    </button>
+                  </div>
+                </div>
+
+                <div className="flex justify-between items-center pt-2">
                   <span className="text-[var(--text-secondary)]">Amount</span>
                   <span className="text-2xl font-bold gradient-text">₹{price}</span>
                 </div>
@@ -417,7 +512,7 @@ export default function BookingPage() {
                 ← Back
               </button>
               <button
-                onClick={handleBook}
+                onClick={handleConfirmBookingClick}
                 disabled={loading}
                 className="btn btn-primary btn-lg flex-1 animate-pulse-glow"
                 id="confirm-booking"
@@ -431,9 +526,64 @@ export default function BookingPage() {
                     Booking...
                   </div>
                 ) : (
-                  `Confirm Booking — ₹${price}`
+                  paymentMethod === 'counter' ? `Confirm Booking — ₹${price}` : `Pay & Book — ₹${price}`
                 )}
               </button>
+            </div>
+          </div>
+        )}
+
+        {/* UPI Payment Modal */}
+        {showPaymentModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 backdrop-blur-sm p-6 animate-fade-in">
+            <div className="w-full max-w-sm bg-slate-900 border border-slate-800 rounded-3xl p-6 shadow-2xl animate-scale-in text-center text-white">
+              {paymentSimulating ? (
+                <>
+                  <div className="w-16 h-16 rounded-full bg-amber-500/10 flex items-center justify-center mx-auto mb-4 relative">
+                    <div className="absolute inset-0 border-2 border-dashed border-amber-500/30 rounded-full animate-spin" style={{ animationDuration: '6s' }} />
+                    <div className="w-10 h-10 border-4 border-amber-500 border-t-transparent rounded-full animate-spin" />
+                  </div>
+                  <h3 className="text-xl font-bold mb-1" style={{ fontFamily: 'var(--font-space-grotesk)' }}>
+                    UPI Payment Gateway
+                  </h3>
+                  <p className="text-slate-400 text-xs mb-5">
+                    Scan the QR code in your <span className="capitalize font-semibold text-slate-200">{paymentMethod}</span> app to pay ₹{price}
+                  </p>
+                  
+                  <div className="bg-white p-3 rounded-2xl inline-block mb-4 shadow-md border border-slate-700">
+                    <QRCodeSVG
+                      value={`upi://pay?pa=iistcafeteria@okaxis&pn=IIST%20Cafeteria&am=${price}&cu=INR`}
+                      size={160}
+                      level="M"
+                      bgColor="#ffffff"
+                      fgColor="#0f172a"
+                      includeMargin={false}
+                    />
+                  </div>
+                  
+                  <div className="text-xs text-slate-400 bg-white/5 border border-white/10 rounded-xl py-2 px-3 inline-block max-w-[240px] mx-auto mb-4 font-mono">
+                    upi://pay?pa=iist...
+                  </div>
+                  
+                  <p className="text-sm text-amber-400 font-medium">
+                    Approving transaction in {paymentCountdown}s...
+                  </p>
+                </>
+              ) : (
+                <>
+                  <div className="w-16 h-16 rounded-full bg-emerald-500/20 flex items-center justify-center mx-auto mb-4 animate-scale-in">
+                    <svg className="w-8 h-8 text-emerald-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                      <polyline points="20 6 9 17 4 12"/>
+                    </svg>
+                  </div>
+                  <h3 className="text-xl font-bold text-emerald-400 mb-2" style={{ fontFamily: 'var(--font-space-grotesk)' }}>
+                    Payment Approved!
+                  </h3>
+                  <p className="text-slate-300 text-sm">
+                    Finalizing your order booking, please wait...
+                  </p>
+                </>
+              )}
             </div>
           </div>
         )}

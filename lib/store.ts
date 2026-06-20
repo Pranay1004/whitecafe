@@ -81,12 +81,23 @@ export async function seedIfNeeded() {
   const vegItems = [
     { name: 'Paneer Biryani', desc: 'Aromatic basmati rice with paneer tikka', price: 150 },
     { name: 'Chole Bhature', desc: 'Spicy chickpea curry with fluffy fried bread', price: 150 },
-    { name: 'Mixed Veg Curry', desc: 'Seasonal vegetables in rich gravy', price: 150 },
+    { name: 'Mixed Veg Curry', desc: 'Seasonal vegetables in rich gravy', price: 120 },
+    { name: 'Veg Roll', desc: 'Flaky flatbread wrapped with spiced vegetables', price: 60 },
+    { name: 'Veg Fried Rice', desc: 'Basmati rice tossed with fresh garden vegetables', price: 100 },
+    { name: 'Dal Khichdi', desc: 'Comforting lentil and rice porridge served with ghee', price: 90 },
+    { name: 'Medu Vada (2 pcs)', desc: 'Crispy fried lentil donuts served with sambar & chutney', price: 40 },
+    { name: 'Masala Dosa', desc: 'Crispy rice crepe filled with potato masala', price: 70 },
+    { name: 'Samosa (2 pcs)', desc: 'Crispy pastry shells filled with spiced potatoes', price: 30 },
   ];
   const nonvegItems = [
     { name: 'Chicken Biryani', desc: 'Hyderabadi-style dum biryani with tender chicken', price: 180 },
     { name: 'Mutton Keema', desc: 'Minced mutton with aromatic spices', price: 180 },
-    { name: 'Fish Curry', desc: 'Kerala-style fish in coconut gravy', price: 180 },
+    { name: 'Fish Curry', desc: 'Kerala-style fish in coconut gravy', price: 160 },
+    { name: 'Egg Chicken Roll', desc: 'Spiced chicken and egg wrapped in a flaky roll', price: 90 },
+    { name: 'Chicken Fried Rice', desc: 'Wok-tossed rice with shredded chicken and egg', price: 130 },
+    { name: 'Chicken Shawarma', desc: 'Slow-roasted chicken wrap with garlic mayo', price: 120 },
+    { name: 'Chicken Kothu Parotta', desc: 'Shredded parotta chopped with chicken, egg and curry sauce', price: 140 },
+    { name: 'Egg Kothu Parotta', desc: 'Shredded parotta chopped with egg and spices', price: 110 },
   ];
 
   vegItems.forEach((item, i) => {
@@ -98,7 +109,7 @@ export async function seedIfNeeded() {
       price: item.price,
       available: true,
       description: item.desc,
-      slot_time: '12:00-19:00',
+      slot_time: '07:30-21:30',
     });
   });
 
@@ -111,7 +122,7 @@ export async function seedIfNeeded() {
       price: item.price,
       available: true,
       description: item.desc,
-      slot_time: '12:00-19:00',
+      slot_time: '07:30-21:30',
     });
   });
 }

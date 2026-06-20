@@ -92,8 +92,15 @@ export async function POST(request: Request) {
         verified_by: null,
         verified_at: null,
         counter: null,
+        payment_method: body.payment_method || 'Pay at Counter',
+        payment_status: body.payment_status || 'Pending',
       },
     };
+
+    // Simulate sending WhatsApp and email
+    const userEmail = user.id.startsWith('GUEST') ? 'guest@iist.ac.in' : `${user.id.toLowerCase()}@iist.ac.in`;
+    console.log(`[NOTIFY] WhatsApp notification sent to customer for order ${bookingId}`);
+    console.log(`[NOTIFY] Order confirmation email sent to ${userEmail} for order ${bookingId}`);
 
     bookingStore.set(bookingId, booking);
 

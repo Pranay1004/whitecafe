@@ -15,6 +15,8 @@ interface BookingData {
   booking_date: string;
   booking_time: string;
   user_name: string;
+  payment_method?: string;
+  payment_status?: string;
   qr_data: {
     booking_id: string;
     user_code: number;
@@ -68,6 +70,20 @@ export default function ConfirmationPage() {
     year: 'numeric',
   });
 
+  const whatsappMessage = encodeURIComponent(
+    `🍽️ *IIST Cafeteria Order Receipt*\n` +
+    `-----------------------------------\n` +
+    `*Order ID:* ${booking.booking_id}\n` +
+    `*Verification Code:* ${booking.user_code}\n` +
+    `*Customer:* ${booking.user_name || 'Guest'}\n` +
+    `*Item:* ${booking.item_name}\n` +
+    `*Time Slot:* ${booking.booking_time}\n` +
+    `*Amount:* ₹${booking.amount}\n` +
+    `*Payment:* ${booking.payment_method || 'Pay at Counter'} (${booking.payment_status || 'Pending'})\n` +
+    `-----------------------------------\n` +
+    `Please show this message at the counter to collect your meal.`
+  );
+
   return (
     <div className="min-h-screen bg-[var(--background)]">
       {/* Success header */}
@@ -96,6 +112,15 @@ export default function ConfirmationPage() {
       </div>
 
       <main className="max-w-lg mx-auto px-6 -mt-6 pb-12">
+        {/* Notification success banner */}
+        <div className="mb-6 p-4 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-sm font-medium flex items-center gap-3 animate-scale-in">
+          <span className="text-lg">📩</span>
+          <div className="text-left">
+            <p className="font-semibold text-white text-xs md:text-sm">Receipt Sent Automatically</p>
+            <p className="text-[10px] md:text-xs text-slate-400">Order details sent to your registered email and WhatsApp number.</p>
+          </div>
+        </div>
+
         {/* Main Card */}
         <div className="card p-6 mb-6 animate-slide-up">
           {/* Booking ID */}
@@ -111,7 +136,7 @@ export default function ConfirmationPage() {
             <p className="text-[var(--text-tertiary)] text-xs uppercase tracking-wider mb-3">Your Verification Code</p>
             <button
               onClick={handleCopyCode}
-              className={`inline-flex items-center gap-3 px-8 py-4 rounded-2xl transition-all ${
+              className={`inline-flex items-center gap-3 px-8 py-4 rounded-2xl transition-all cursor-pointer ${
                 isVeg
                   ? 'bg-emerald-50 dark:bg-emerald-900/20 hover:bg-emerald-100 dark:hover:bg-emerald-900/30'
                   : 'bg-red-50 dark:bg-red-900/20 hover:bg-red-100 dark:hover:bg-red-900/30'
@@ -145,27 +170,33 @@ export default function ConfirmationPage() {
           </div>
 
           {/* Booking Details */}
-          <div className="space-y-3">
+          <div className="space-y-3 text-left">
             <div className="flex justify-between items-center">
               <span className="text-[var(--text-secondary)] text-sm">Meal</span>
               <div className="flex items-center gap-2">
                 <span className={`badge ${isVeg ? 'badge-veg' : 'badge-nonveg'}`}>
                   {isVeg ? '🟢 Veg' : '🔴 Non-Veg'}
                 </span>
-                <span className="font-medium text-sm">{booking.item_name}</span>
+                <span className="font-medium text-sm text-[var(--text-primary)]">{booking.item_name}</span>
               </div>
             </div>
             <div className="flex justify-between items-center">
               <span className="text-[var(--text-secondary)] text-sm">Date</span>
-              <span className="font-medium text-sm">{formattedDate}</span>
+              <span className="font-medium text-sm text-[var(--text-primary)]">{formattedDate}</span>
             </div>
             <div className="flex justify-between items-center">
               <span className="text-[var(--text-secondary)] text-sm">Time</span>
-              <span className="font-medium text-sm">{booking.booking_time}</span>
+              <span className="font-medium text-sm text-[var(--text-primary)]">{booking.booking_time}</span>
             </div>
             <div className="flex justify-between items-center">
-              <span className="text-[var(--text-secondary)] text-sm">Status</span>
-              <span className="badge badge-pending">⏳ Pending</span>
+              <span className="text-[var(--text-secondary)] text-sm">Payment Method</span>
+              <span className="font-medium text-sm capitalize text-[var(--text-primary)]">{booking.payment_method || 'Pay at Counter'}</span>
+            </div>
+            <div className="flex justify-between items-center">
+              <span className="text-[var(--text-secondary)] text-sm">Payment Status</span>
+              <span className={`badge ${booking.payment_status === 'Paid' ? 'badge-confirmed bg-emerald-500/10 text-emerald-500' : 'badge-pending bg-amber-500/10 text-amber-500'}`}>
+                {booking.payment_status === 'Paid' ? '✓ Paid' : '⏳ Pending'}
+              </span>
             </div>
             <div className="flex justify-between items-center pt-3 border-t border-[var(--border)]">
               <span className="text-[var(--text-secondary)]">Amount</span>
@@ -176,6 +207,17 @@ export default function ConfirmationPage() {
 
         {/* Actions */}
         <div className="space-y-3 animate-fade-in" style={{ animationDelay: '0.3s' }}>
+          <a
+            href={`https://wa.me/?text=${whatsappMessage}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="btn btn-secondary w-full bg-emerald-600 hover:bg-emerald-700 text-white border-none flex items-center justify-center gap-2"
+          >
+            <svg width="18" height="18" fill="currentColor" viewBox="0 0 24 24">
+              <path d="M12.012 2c-5.506 0-9.989 4.478-9.99 9.984a9.96 9.96 0 0 0 1.333 4.982L2 22l5.233-1.371a9.994 9.994 0 0 0 4.773 1.216h.004c5.505 0 9.99-4.478 9.99-9.984 0-2.669-1.037-5.176-2.922-7.062A9.925 9.925 0 0 0 12.012 2zm5.726 14.141c-.247.695-1.201 1.27-1.655 1.319-.444.047-.999.073-1.602-.122a7.712 7.712 0 0 1-3.411-2.023c-1.464-1.274-2.39-2.778-2.731-3.268-.341-.489-.565-.856-.565-1.337 0-.48.247-.723.338-.823.091-.1.201-.15.297-.15h.215c.074 0 .167.003.243.176.082.19.282.686.306.736.024.049.039.109.007.172s-.048.1-.097.16c-.048.059-.1.134-.144.18-.049.052-.1.109-.044.204a9.124 9.124 0 0 0 1.666 2.059 7.6 7.6 0 0 0 2.408 1.48c.114.053.181.045.249-.034.068-.078.297-.344.375-.461.078-.117.157-.098.264-.059.109.039.689.324.808.383.118.059.198.088.228.137.031.05.031.288-.067.575z"/>
+            </svg>
+            Share Receipt on WhatsApp
+          </a>
           <Link href="/booking" className="btn btn-primary w-full">
             Book Another Meal
           </Link>
@@ -198,3 +240,4 @@ export default function ConfirmationPage() {
     </div>
   );
 }
+

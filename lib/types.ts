@@ -55,6 +55,8 @@ export interface Booking {
     verified_at: string | null;
     counter: MealType | null;
     rejection_reason?: string;
+    payment_method?: string;
+    payment_status?: string;
   };
 }
 
@@ -63,6 +65,8 @@ export interface BookingCreateRequest {
   item_name?: string;
   booking_date: string;
   booking_time: string;
+  payment_method?: string;
+  payment_status?: string;
 }
 
 export interface BookingCreateResponse {
@@ -148,10 +152,21 @@ export const TIME_SLOTS = [
 
 // ---- Menu Data (static for MVP) ----
 export const MENU_ITEMS: Omit<MenuItem, 'id'>[] = [
-  { name: 'Paneer Biryani', type: 'veg', price: 150, available: true, description: 'Aromatic basmati rice with paneer tikka', slot_time: '12:00-13:00' },
-  { name: 'Chole Bhature', type: 'veg', price: 150, available: true, description: 'Spicy chickpea curry with fluffy fried bread', slot_time: '12:00-13:00' },
-  { name: 'Mixed Veg Curry', type: 'veg', price: 150, available: true, description: 'Seasonal vegetables in rich gravy', slot_time: '12:00-13:00' },
-  { name: 'Chicken Biryani', type: 'nonveg', price: 180, available: true, description: 'Hyderabadi-style dum biryani with tender chicken', slot_time: '12:00-13:00' },
-  { name: 'Mutton Keema', type: 'nonveg', price: 180, available: true, description: 'Minced mutton with aromatic spices', slot_time: '12:00-13:00' },
-  { name: 'Fish Curry', type: 'nonveg', price: 180, available: true, description: 'Kerala-style fish in coconut gravy', slot_time: '12:00-13:00' },
+  { name: 'Paneer Biryani', type: 'veg', price: 150, available: true, description: 'Aromatic basmati rice with paneer tikka', slot_time: '07:30-21:30' },
+  { name: 'Chole Bhature', type: 'veg', price: 150, available: true, description: 'Spicy chickpea curry with fluffy fried bread', slot_time: '07:30-21:30' },
+  { name: 'Mixed Veg Curry', type: 'veg', price: 120, available: true, description: 'Seasonal vegetables in rich gravy', slot_time: '07:30-21:30' },
+  { name: 'Veg Roll', type: 'veg', price: 60, available: true, description: 'Flaky flatbread wrapped with spiced vegetables', slot_time: '07:30-21:30' },
+  { name: 'Veg Fried Rice', type: 'veg', price: 100, available: true, description: 'Basmati rice tossed with fresh garden vegetables', slot_time: '07:30-21:30' },
+  { name: 'Dal Khichdi', type: 'veg', price: 90, available: true, description: 'Comforting lentil and rice porridge served with ghee', slot_time: '07:30-21:30' },
+  { name: 'Medu Vada (2 pcs)', type: 'veg', price: 40, available: true, description: 'Crispy fried lentil donuts served with sambar & chutney', slot_time: '07:30-21:30' },
+  { name: 'Masala Dosa', type: 'veg', price: 70, available: true, description: 'Crispy rice crepe filled with potato masala', slot_time: '07:30-21:30' },
+  { name: 'Samosa (2 pcs)', type: 'veg', price: 30, available: true, description: 'Crispy pastry shells filled with spiced potatoes', slot_time: '07:30-21:30' },
+  { name: 'Chicken Biryani', type: 'nonveg', price: 180, available: true, description: 'Hyderabadi-style dum biryani with tender chicken', slot_time: '07:30-21:30' },
+  { name: 'Mutton Keema', type: 'nonveg', price: 180, available: true, description: 'Minced mutton with aromatic spices', slot_time: '07:30-21:30' },
+  { name: 'Fish Curry', type: 'nonveg', price: 160, available: true, description: 'Kerala-style fish in coconut gravy', slot_time: '07:30-21:30' },
+  { name: 'Egg Chicken Roll', type: 'nonveg', price: 90, available: true, description: 'Spiced chicken and egg wrapped in a flaky roll', slot_time: '07:30-21:30' },
+  { name: 'Chicken Fried Rice', type: 'nonveg', price: 130, available: true, description: 'Wok-tossed rice with shredded chicken and egg', slot_time: '07:30-21:30' },
+  { name: 'Chicken Shawarma', type: 'nonveg', price: 120, available: true, description: 'Slow-roasted chicken wrap with garlic mayo', slot_time: '07:30-21:30' },
+  { name: 'Chicken Kothu Parotta', type: 'nonveg', price: 140, available: true, description: 'Shredded parotta chopped with chicken, egg and curry sauce', slot_time: '07:30-21:30' },
+  { name: 'Egg Kothu Parotta', type: 'nonveg', price: 110, available: true, description: 'Shredded parotta chopped with egg and spices', slot_time: '07:30-21:30' },
 ];
