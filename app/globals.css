@@ -489,3 +489,47 @@ body {
 main {
   animation: fadeIn 0.3s ease-out;
 }
+
+/* ================================ */
+/* Thermal Receipt Printer Support  */
+/* ================================ */
+@media print {
+  /* Hide all layout wrappers */
+  body, html, main, div, header, footer {
+    background: white !important;
+    color: black !important;
+    box-shadow: none !important;
+  }
+  
+  header, footer, .btn, a, .animate-fade-in {
+    display: none !important;
+  }
+
+  /* Only display the receipt card */
+  body * {
+    visibility: hidden;
+  }
+  
+  .card, .card * {
+    visibility: visible;
+  }
+
+  .card {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 80mm; /* Standard 80mm thermal receipt width */
+    max-width: 100%;
+    border: none !important;
+    box-sizing: border-box;
+    padding: 10px !important;
+    margin: 0 !important;
+    box-shadow: none !important;
+  }
+
+  .qr-container {
+    box-shadow: none !important;
+    border: 1px solid #ddd !important;
+    padding: 12px !important;
+  }
+}

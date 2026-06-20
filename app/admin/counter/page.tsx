@@ -199,8 +199,20 @@ export default function CounterPortal() {
               <div className="space-y-3 mb-6 text-left">
                 <div className="flex justify-between items-center pb-2 border-b border-[var(--border)]">
                   <span className="text-[var(--text-secondary)] text-sm">Booking</span>
-                  <span className="font-mono font-bold">{foundBooking.booking_id}</span>
+                  <span className="font-mono font-bold text-[var(--text-primary)]">{foundBooking.booking_id}</span>
                 </div>
+                {foundBooking.metadata?.payment_method && (
+                  <div className="flex justify-between items-center pb-2 border-b border-[var(--border)]">
+                    <span className="text-[var(--text-secondary)] text-sm">Payment Method</span>
+                    <span className="font-medium capitalize">{foundBooking.metadata.payment_method}</span>
+                  </div>
+                )}
+                {foundBooking.metadata?.payment_utr && (
+                  <div className="flex justify-between items-center pb-2 border-b border-[var(--border)]">
+                    <span className="text-[var(--text-secondary)] text-sm">UPI UTR No.</span>
+                    <span className="font-mono font-bold text-amber-500">{foundBooking.metadata.payment_utr}</span>
+                  </div>
+                )}
                 <div className="flex justify-between items-center pb-2 border-b border-[var(--border)]">
                   <span className="text-[var(--text-secondary)] text-sm">Student</span>
                   <span className="font-medium">{foundBooking.user_name || foundBooking.user_id}</span>

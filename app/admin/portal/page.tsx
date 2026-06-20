@@ -279,8 +279,14 @@ export default function AdminPortal() {
                       <span>⏰ {booking.booking_time}</span>
                       <span>💰 ₹{booking.amount}</span>
                     </div>
-                    <div className="mt-2 flex gap-4 text-xs text-[var(--text-tertiary)]">
+                    <div className="mt-2 flex flex-wrap gap-4 text-xs text-[var(--text-tertiary)]">
                       <span>User Code: <strong className="text-[var(--text-primary)]">{booking.user_code}</strong></span>
+                      {booking.metadata?.payment_method && (
+                        <span>Payment: <strong className="capitalize text-[var(--text-primary)]">{booking.metadata.payment_method}</strong></span>
+                      )}
+                      {booking.metadata?.payment_utr && (
+                        <span>UTR: <strong className="font-mono text-amber-500">{booking.metadata.payment_utr}</strong></span>
+                      )}
                       {user?.role === 'admin' && (
                         <span>Admin Code: <strong className="text-amber-600">{booking.admin_code}</strong></span>
                       )}

@@ -5,6 +5,7 @@ export const runtime = 'nodejs';
 import { authenticateRequest, generateCode, generateBookingId } from '@/lib/auth';
 import { bookingStore, menuStore, auditStore, seedIfNeeded } from '@/lib/store';
 import type { Booking, BookingCreateRequest, BookingCreateResponse, ApiResponse, AuditEntry } from '@/lib/types';
+import { sendWhatsAppMessage } from '@/lib/whatsapp';
 
 export async function POST(request: Request) {
   try {
@@ -94,12 +95,36 @@ export async function POST(request: Request) {
         counter: null,
         payment_method: body.payment_method || 'Pay at Counter',
         payment_status: body.payment_status || 'Pending',
+        payment_utr: body.payment_utr || '',
       },
     };
 
-    // Simulate sending WhatsApp and email
-    const userEmail = user.id.startsWith('GUEST') ? 'guest@iist.ac.in' : `${user.id.toLowerCase()}@iist.ac.in`;
-    console.log(`[NOTIFY] WhatsApp notification sent to customer for order ${bookingId}`);
+    // Compose receipt details for notification
+    const receiptText = 
+      `🍽️ *IIST Cafeteria Order Receipt*\n` +
+      `-----------------------------------\n` +
+      `*Order ID:* ${bookingId}\n` +
+      `*Verification Code:* ${userCode}\n` +
+      `*Customer:* ${user.name || 'Guest'} (${user.id})\n` +
+      `*Item:* ${booking.item_name}\n` +
+      `*Time Slot:* ${booking.booking_time}\n` +
+      `*Amount:* ₹${booking.amount}\n` +
+      `*Payment:* ${booking.metadata.payment_method} (${booking.metadata.payment_status})\n` +
+      `*UTR No:* ${booking.metadata.payment_utr || 'N/A'}\n` +
+      `-----------------------------------\n` +
+      `Please show this message at the counter to collect your meal.`;
+
+    // 1. Notify Staff Automatically
+    const staffPhone = process.env.STAFF_WHATSAPP_NUMBER || '+919876543210';
+    await sendWhatsAppMessage(staffPhone, `🔔 *New Order Received!*\n\n${receiptText}`);
+
+    // 2. Notify Customer Automatically
+    const customerPhone = body.phone || '';
+    if (customerPhone) {
+      await sendWhatsAppMessage(customerPhone, `Hello! Here is your cafeteria order confirmation:\n\n${receiptText}`);
+    }
+
+    const userEmail = body.email || (user.id.startsWith('GUEST') ? 'guest@iist.ac.in' : `${user.id.toLowerCase()}@iist.ac.in`);
     console.log(`[NOTIFY] Order confirmation email sent to ${userEmail} for order ${bookingId}`);
 
     bookingStore.set(bookingId, booking);

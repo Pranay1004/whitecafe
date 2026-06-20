@@ -68,8 +68,8 @@ export default function BookingPage() {
   // Payment states
   const [paymentMethod, setPaymentMethod] = useState<'phonepe' | 'paytm' | 'bharatpay' | 'counter'>('counter');
   const [showPaymentModal, setShowPaymentModal] = useState(false);
-  const [paymentCountdown, setPaymentCountdown] = useState(5);
   const [paymentSimulating, setPaymentSimulating] = useState(false);
+  const [utr, setUtr] = useState('');
 
   const todayDate = getTodayDateString();
   const todayFormatted = new Date().toLocaleDateString('en-IN', {
@@ -114,27 +114,22 @@ export default function BookingPage() {
     }
   }, [mealType]);
 
-  useEffect(() => {
-    let timer: NodeJS.Timeout;
-    if (showPaymentModal && paymentCountdown > 0) {
-      timer = setTimeout(() => {
-        setPaymentCountdown((prev) => prev - 1);
-      }, 1000);
-    } else if (showPaymentModal && paymentCountdown === 0) {
-      setPaymentSimulating(false);
-      timer = setTimeout(() => {
-        const methodLabel = paymentMethod === 'phonepe' ? 'PhonePe' : paymentMethod === 'paytm' ? 'Paytm' : 'BharatPe';
-        handleBook(methodLabel, 'Paid');
-      }, 600);
-    }
-    return () => clearTimeout(timer);
-  }, [showPaymentModal, paymentCountdown]);
-
-  const handleBook = async (method: string = 'Pay at Counter', status: string = 'Pending') => {
+  const handleBook = async (method: string = 'Pay at Counter', status: string = 'Pending', transactionUtr: string = '') => {
     setError('');
     setLoading(true);
     try {
       const token = localStorage.getItem('token');
+      const userData = localStorage.getItem('user');
+      let phone = '';
+      let email = '';
+      if (userData) {
+        try {
+          const parsed = JSON.parse(userData);
+          phone = parsed.phone || '';
+          email = parsed.email || '';
+        } catch {}
+      }
+
       const res = await fetch('/api/bookings', {
         method: 'POST',
         headers: {
@@ -148,6 +143,9 @@ export default function BookingPage() {
           booking_time: selectedTime,
           payment_method: method,
           payment_status: status,
+          payment_utr: transactionUtr,
+          phone,
+          email,
         }),
       });
 
@@ -170,6 +168,7 @@ export default function BookingPage() {
         user_name: user?.name,
         payment_method: method,
         payment_status: status,
+        payment_utr: transactionUtr,
       }));
 
       router.push('/confirmation');
@@ -181,13 +180,28 @@ export default function BookingPage() {
   };
 
   const handleConfirmBookingClick = () => {
+    setError('');
     if (paymentMethod === 'counter') {
-      handleBook('Pay at Counter', 'Pending');
+      handleBook('Pay at Counter', 'Pending', '');
     } else {
+      setUtr('');
       setShowPaymentModal(true);
-      setPaymentCountdown(5);
-      setPaymentSimulating(true);
+      setPaymentSimulating(false);
     }
+  };
+
+  const handleSubmitUtr = () => {
+    if (utr.length !== 12) {
+      setError('Please enter a valid 12-digit UTR number');
+      return;
+    }
+    setError('');
+    setPaymentSimulating(true);
+    setTimeout(() => {
+      setPaymentSimulating(false);
+      const methodLabel = paymentMethod === 'phonepe' ? 'PhonePe' : paymentMethod === 'paytm' ? 'Paytm' : 'BharatPe';
+      handleBook(methodLabel, 'Paid', utr);
+    }, 2500);
   };
 
   const totalSteps = 3;
@@ -544,44 +558,68 @@ export default function BookingPage() {
                     <div className="w-10 h-10 border-4 border-amber-500 border-t-transparent rounded-full animate-spin" />
                   </div>
                   <h3 className="text-xl font-bold mb-1" style={{ fontFamily: 'var(--font-space-grotesk)' }}>
+                    Verifying Transaction
+                  </h3>
+                  <p className="text-slate-300 text-sm">
+                    Checking UTR / Reference ID against merchant logs, please wait...
+                  </p>
+                </>
+              ) : (
+                <>
+                  <h3 className="text-xl font-bold mb-1 animate-scale-in" style={{ fontFamily: 'var(--font-space-grotesk)' }}>
                     UPI Payment Gateway
                   </h3>
-                  <p className="text-slate-400 text-xs mb-5">
-                    Scan the QR code in your <span className="capitalize font-semibold text-slate-200">{paymentMethod}</span> app to pay ₹{price}
+                  <p className="text-slate-400 text-xs mb-4">
+                    Scan using your <span className="capitalize font-semibold text-slate-200">{paymentMethod}</span> app to pay ₹{price}
                   </p>
                   
-                  <div className="bg-white p-3 rounded-2xl inline-block mb-4 shadow-md border border-slate-700">
+                  <div className="bg-white p-3 rounded-2xl inline-block mb-4 shadow-md border border-slate-700 animate-scale-in">
                     <QRCodeSVG
                       value={`upi://pay?pa=iistcafeteria@okaxis&pn=IIST%20Cafeteria&am=${price}&cu=INR`}
-                      size={160}
+                      size={150}
                       level="M"
                       bgColor="#ffffff"
                       fgColor="#0f172a"
                       includeMargin={false}
                     />
                   </div>
-                  
-                  <div className="text-xs text-slate-400 bg-white/5 border border-white/10 rounded-xl py-2 px-3 inline-block max-w-[240px] mx-auto mb-4 font-mono">
-                    upi://pay?pa=iist...
+
+                  <div className="space-y-4 text-left">
+                    <div>
+                      <label className="block text-[10px] uppercase tracking-wider text-slate-400 font-semibold mb-1">
+                        Enter 12-Digit UPI Transaction ID (UTR)
+                      </label>
+                      <input
+                        type="text"
+                        className="input text-center text-sm font-mono tracking-widest bg-slate-950 border-slate-800 text-white rounded-xl py-2.5 w-full"
+                        placeholder="e.g. 629194829381"
+                        maxLength={12}
+                        value={utr}
+                        onChange={(e) => setUtr(e.target.value.replace(/\D/g, ''))}
+                        required
+                      />
+                    </div>
+
+                    {error && (
+                      <p className="text-xs text-red-500 font-medium text-center">{error}</p>
+                    )}
+
+                    <div className="flex gap-2 pt-2">
+                      <button
+                        onClick={() => { setShowPaymentModal(false); setUtr(''); setError(''); }}
+                        className="btn btn-secondary btn-sm flex-1 bg-slate-800 border-none text-slate-300 hover:bg-slate-700 cursor-pointer"
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        onClick={handleSubmitUtr}
+                        disabled={utr.length !== 12}
+                        className="btn btn-primary btn-sm flex-1 cursor-pointer"
+                      >
+                        Submit Payment
+                      </button>
+                    </div>
                   </div>
-                  
-                  <p className="text-sm text-amber-400 font-medium">
-                    Approving transaction in {paymentCountdown}s...
-                  </p>
-                </>
-              ) : (
-                <>
-                  <div className="w-16 h-16 rounded-full bg-emerald-500/20 flex items-center justify-center mx-auto mb-4 animate-scale-in">
-                    <svg className="w-8 h-8 text-emerald-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
-                      <polyline points="20 6 9 17 4 12"/>
-                    </svg>
-                  </div>
-                  <h3 className="text-xl font-bold text-emerald-400 mb-2" style={{ fontFamily: 'var(--font-space-grotesk)' }}>
-                    Payment Approved!
-                  </h3>
-                  <p className="text-slate-300 text-sm">
-                    Finalizing your order booking, please wait...
-                  </p>
                 </>
               )}
             </div>

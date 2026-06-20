@@ -57,6 +57,7 @@ export interface Booking {
     rejection_reason?: string;
     payment_method?: string;
     payment_status?: string;
+    payment_utr?: string;
   };
 }
 
@@ -67,6 +68,9 @@ export interface BookingCreateRequest {
   booking_time: string;
   payment_method?: string;
   payment_status?: string;
+  payment_utr?: string;
+  phone?: string;
+  email?: string;
 }
 
 export interface BookingCreateResponse {
