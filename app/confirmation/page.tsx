@@ -117,8 +117,8 @@ export default function ConfirmationPage() {
         <div className="mb-6 p-4 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-sm font-medium flex items-center gap-3 animate-scale-in">
           <span className="text-lg">📩</span>
           <div className="text-left">
-            <p className="font-semibold text-white text-xs md:text-sm">Receipt Sent Automatically</p>
-            <p className="text-[10px] md:text-xs text-slate-400">Order details sent to your registered email and WhatsApp number.</p>
+            <p className="font-semibold text-white text-xs md:text-sm">Please Share to Counter</p>
+            <p className="text-[10px] md:text-xs text-slate-400">Tap the WhatsApp button below to send your order receipt directly to the counter.</p>
           </div>
         </div>
 
@@ -193,7 +193,7 @@ export default function ConfirmationPage() {
               <span className="text-[var(--text-secondary)] text-sm">Payment Method</span>
               <span className="font-medium text-sm capitalize text-[var(--text-primary)]">{booking.payment_method || 'Pay at Counter'}</span>
             </div>
-            {booking.payment_utr && (
+            {booking.payment_utr && booking.payment_utr !== 'UPI' && (
               <div className="flex justify-between items-center">
                 <span className="text-[var(--text-secondary)] text-sm">UTR No.</span>
                 <span className="font-mono font-bold text-sm text-amber-500">{booking.payment_utr}</span>
@@ -201,8 +201,8 @@ export default function ConfirmationPage() {
             )}
             <div className="flex justify-between items-center">
               <span className="text-[var(--text-secondary)] text-sm">Payment Status</span>
-              <span className={`badge ${booking.payment_status === 'Paid' ? 'badge-confirmed bg-emerald-500/10 text-emerald-500' : 'badge-pending bg-amber-500/10 text-amber-500'}`}>
-                {booking.payment_status === 'Paid' ? '✓ Paid' : '⏳ Pending'}
+              <span className={`badge ${booking.payment_status?.includes('Paid') ? 'badge-confirmed bg-emerald-500/10 text-emerald-500' : 'badge-pending bg-amber-500/10 text-amber-500'}`}>
+                {booking.payment_status === 'Paid' || booking.payment_status === 'Paid (UPI)' ? '✓ Paid' : '⏳ Pending'}
               </span>
             </div>
             <div className="flex justify-between items-center pt-3 border-t border-[var(--border)]">
@@ -215,7 +215,7 @@ export default function ConfirmationPage() {
         {/* Actions */}
         <div className="space-y-3 animate-fade-in" style={{ animationDelay: '0.3s' }}>
           <a
-            href={`https://wa.me/?text=${whatsappMessage}`}
+            href={`https://wa.me/919082571606?text=${whatsappMessage}`}
             target="_blank"
             rel="noopener noreferrer"
             className="btn btn-secondary w-full bg-emerald-600 hover:bg-emerald-700 text-white border-none flex items-center justify-center gap-2 cursor-pointer"
@@ -223,19 +223,8 @@ export default function ConfirmationPage() {
             <svg width="18" height="18" fill="currentColor" viewBox="0 0 24 24">
               <path d="M12.012 2c-5.506 0-9.989 4.478-9.99 9.984a9.96 9.96 0 0 0 1.333 4.982L2 22l5.233-1.371a9.994 9.994 0 0 0 4.773 1.216h.004c5.505 0 9.99-4.478 9.99-9.984 0-2.669-1.037-5.176-2.922-7.062A9.925 9.925 0 0 0 12.012 2zm5.726 14.141c-.247.695-1.201 1.27-1.655 1.319-.444.047-.999.073-1.602-.122a7.712 7.712 0 0 1-3.411-2.023c-1.464-1.274-2.39-2.778-2.731-3.268-.341-.489-.565-.856-.565-1.337 0-.48.247-.723.338-.823.091-.1.201-.15.297-.15h.215c.074 0 .167.003.243.176.082.19.282.686.306.736.024.049.039.109.007.172s-.048.1-.097.16c-.048.059-.1.134-.144.18-.049.052-.1.109-.044.204a9.124 9.124 0 0 0 1.666 2.059 7.6 7.6 0 0 0 2.408 1.48c.114.053.181.045.249-.034.068-.078.297-.344.375-.461.078-.117.157-.098.264-.059.109.039.689.324.808.383.118.059.198.088.228.137.031.05.031.288-.067.575z"/>
             </svg>
-            Share Receipt on WhatsApp
+            Share Receipt to Counter (+91 9082571606)
           </a>
-          <button
-            onClick={() => window.print()}
-            className="btn btn-secondary w-full border-slate-600 text-slate-300 hover:bg-slate-800 flex items-center justify-center gap-2 cursor-pointer"
-          >
-            <svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" strokeLinecap="round" strokeLinejoin="round">
-              <polyline points="6 9 6 2 18 2 18 9"/>
-              <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/>
-              <rect x="6" y="14" width="12" height="8"/>
-            </svg>
-            Print Receipt
-          </button>
           <Link href="/booking" className="btn btn-primary w-full">
             Book Another Meal
           </Link>
