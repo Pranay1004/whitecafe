@@ -94,6 +94,8 @@ html {
   scroll-behavior: smooth;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  /* Prevent horizontal overflow on mobile */
+  overflow-x: hidden;
 }
 
 body {
@@ -101,6 +103,10 @@ body {
   color: var(--text-primary);
   font-family: 'Inter', system-ui, sans-serif;
   min-height: 100vh;
+  /* Prevent horizontal overflow on mobile */
+  overflow-x: hidden;
+  /* Remove tap highlight flicker on mobile */
+  -webkit-tap-highlight-color: transparent;
 }
 
 /* ================================ */
@@ -333,6 +339,15 @@ body {
   transform: none !important;
 }
 
+/* Extra-large CTA button — for primary mobile actions */
+.btn-xl {
+  padding: 18px 36px;
+  font-size: 1.125rem;
+  border-radius: var(--radius-xl);
+  letter-spacing: 0.01em;
+  min-height: 60px;
+}
+
 /* ================================ */
 /* Inputs                           */
 /* ================================ */
@@ -367,6 +382,14 @@ body {
   margin-bottom: 6px;
   text-transform: uppercase;
   letter-spacing: 0.05em;
+}
+
+/* Mobile-optimised input — iOS doesn't zoom if font-size >= 16px */
+.input-mobile {
+  font-size: 16px;
+  padding: 14px 16px;
+  min-height: 52px;
+  border-radius: var(--radius-lg);
 }
 
 /* ================================ */

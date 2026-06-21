@@ -339,7 +339,7 @@ export default function BookingPage() {
                         {PERIOD_ICONS[period]} {period}
                         {allExpired && <span className="ml-2 text-xs font-normal">(passed)</span>}
                       </p>
-                      <div className="grid grid-cols-3 sm:grid-cols-5 gap-2">
+                      <div className="grid grid-cols-3 gap-2">
                         {slots.map((slot) => {
                           const expired = isSlotExpired(slot.value);
                           return (
@@ -347,7 +347,7 @@ export default function BookingPage() {
                               key={slot.value}
                               onClick={() => !expired && setSelectedTime(slot.value)}
                               disabled={expired}
-                              className={`p-3 rounded-xl border-2 text-center font-semibold text-sm transition-all ${
+                              className={`py-4 px-2 rounded-xl border-2 text-center font-bold text-sm transition-all active:scale-95 ${
                                 expired
                                   ? 'border-[var(--border)] text-[var(--text-tertiary)] opacity-40 cursor-not-allowed line-through'
                                   : selectedTime === slot.value
@@ -367,9 +367,9 @@ export default function BookingPage() {
                 <button
                   onClick={() => setStep(2)}
                   disabled={!selectedTime || !mealType}
-                  className="btn btn-primary w-full mt-4"
+                  className="btn btn-primary btn-xl w-full mt-6"
                 >
-                  Continue to menu →
+                  Continue to Menu →
                 </button>
               </div>
             )}
