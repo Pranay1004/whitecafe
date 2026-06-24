@@ -19,6 +19,7 @@ interface BookingData {
   payment_status?: string;
   payment_utr?: string;
   is_parcel?: boolean;
+  items?: any[];
   qr_data: {
     booking_id: string;
     user_code: number;
@@ -72,13 +73,17 @@ export default function ConfirmationPage() {
     year: 'numeric',
   });
 
+  const itemsListText = booking.items && booking.items.length > 0
+    ? booking.items.map((item: any) => `• ${item.name} x${item.quantity}${item.is_parcel ? ' (Parcel)' : ''} — ₹${(item.price + (item.is_parcel ? 5 : 0)) * item.quantity}`).join('\n')
+    : `• ${booking.item_name} — ₹${booking.amount}`;
+
   const whatsappMessage = encodeURIComponent(
     `🍽️ *IIST Cafeteria Order Receipt*\n` +
     `-----------------------------------\n` +
     `*Order ID:* ${booking.booking_id}\n` +
     `*Verification Code:* ${booking.user_code}\n` +
     `*Customer:* ${booking.user_name || 'Guest'}\n` +
-    `*Item:* ${booking.item_name}\n` +
+    `*Items Ordered:*\n${itemsListText}\n` +
     `*Time Slot:* ${booking.booking_time}\n` +
     `*Amount:* ₹${booking.amount}\n` +
     `*Payment:* ${booking.payment_method || 'Pay at Counter'} (${booking.payment_status || 'Pending'})\n` +
@@ -173,15 +178,52 @@ export default function ConfirmationPage() {
 
           {/* Booking Details */}
           <div className="space-y-3 text-left">
-            <div className="flex justify-between items-center">
-              <span className="text-[var(--text-secondary)] text-sm">Meal</span>
-              <div className="flex items-center gap-2">
-                <span className={`badge ${isVeg ? 'badge-veg' : 'badge-nonveg'}`}>
-                  {isVeg ? '🟢 Veg' : '🔴 Non-Veg'}
-                </span>
-                <span className="font-medium text-sm text-[var(--text-primary)]">{booking.item_name}</span>
+            {booking.items && booking.items.length > 0 ? (
+              <div className="border-b border-[var(--border)] pb-3 mb-3">
+                <p className="text-xs font-semibold uppercase tracking-wider text-[var(--text-secondary)] mb-2">Ordered Items</p>
+                <div className="space-y-2">
+                  {booking.items.map((item: any, i: number) => (
+                    <div key={i} className="flex justify-between items-center bg-[var(--surface-elevated)] px-3 py-2 rounded-xl border border-[var(--border)]">
+                      <div className="flex flex-col text-left">
+                        <div className="flex items-center gap-1.5">
+                          <span className={`w-1.5 h-1.5 rounded-full ${item.type === 'veg' ? 'bg-emerald-500' : 'bg-red-500'}`} />
+                          <span className="font-semibold text-sm text-[var(--text-primary)]">{item.name}</span>
+                          <span className="text-xs text-[var(--text-tertiary)]">x{item.quantity}</span>
+                        </div>
+                        {item.is_parcel && (
+                          <span className="text-[10px] text-amber-500 font-medium">📦 Parcel (+₹5)</span>
+                        )}
+                      </div>
+                      <span className="font-bold text-sm text-[var(--text-primary)]">
+                        ₹{(item.price + (item.is_parcel ? 5 : 0)) * item.quantity}
+                      </span>
+                    </div>
+                  ))}
+                </div>
               </div>
-            </div>
+            ) : (
+              <>
+                <div className="flex justify-between items-center">
+                  <span className="text-[var(--text-secondary)] text-sm">Meal</span>
+                  <div className="flex items-center gap-2">
+                    <span className={`badge ${isVeg ? 'badge-veg' : 'badge-nonveg'}`}>
+                      {isVeg ? '🟢 Veg' : '🔴 Non-Veg'}
+                    </span>
+                    <span className="font-medium text-sm text-[var(--text-primary)]">{booking.item_name}</span>
+                  </div>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-[var(--text-secondary)] text-sm">Parcel</span>
+                  <span className={`badge text-xs font-semibold ${
+                    booking.is_parcel
+                      ? 'bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400'
+                      : 'bg-[var(--border-light)] text-[var(--text-tertiary)]'
+                  }`}>
+                    {booking.is_parcel ? '📦 Parcel (+₹5)' : '🍽 Dine-in'}
+                  </span>
+                </div>
+              </>
+            )}
             <div className="flex justify-between items-center">
               <span className="text-[var(--text-secondary)] text-sm">Date</span>
               <span className="font-medium text-sm text-[var(--text-primary)]">{formattedDate}</span>
@@ -193,16 +235,6 @@ export default function ConfirmationPage() {
             <div className="flex justify-between items-center">
               <span className="text-[var(--text-secondary)] text-sm">Payment Method</span>
               <span className="font-medium text-sm capitalize text-[var(--text-primary)]">{booking.payment_method || 'Pay at Counter'}</span>
-            </div>
-            <div className="flex justify-between items-center">
-              <span className="text-[var(--text-secondary)] text-sm">Parcel</span>
-              <span className={`badge text-xs font-semibold ${
-                booking.is_parcel
-                  ? 'bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400'
-                  : 'bg-[var(--border-light)] text-[var(--text-tertiary)]'
-              }`}>
-                {booking.is_parcel ? '📦 Parcel (+₹5)' : '🍽 Dine-in'}
-              </span>
             </div>
             {booking.payment_utr && booking.payment_utr !== 'UPI' && (
               <div className="flex justify-between items-center">

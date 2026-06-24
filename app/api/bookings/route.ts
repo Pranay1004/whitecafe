@@ -18,30 +18,12 @@ export async function POST(request: Request) {
       );
     }
 
-    const body = (await request.json()) as BookingCreateRequest;
+    const body = (await request.json());
 
     // Validate required fields
-    if (!body.item_type || !body.booking_date || !body.booking_time) {
+    if (!body.booking_date || !body.booking_time) {
       return Response.json(
-        { success: false, error: 'item_type, booking_date, and booking_time are required' } satisfies ApiResponse,
-        { status: 400 }
-      );
-    }
-
-    // Validate item type
-    if (body.item_type !== 'veg' && body.item_type !== 'nonveg') {
-      return Response.json(
-        { success: false, error: 'item_type must be "veg" or "nonveg"' } satisfies ApiResponse,
-        { status: 400 }
-      );
-    }
-
-    // Validate date — same-day booking only
-    const serverNow = new Date();
-    const todayStr = `${serverNow.getFullYear()}-${String(serverNow.getMonth() + 1).padStart(2, '0')}-${String(serverNow.getDate()).padStart(2, '0')}`;
-    if (body.booking_date < todayStr) {
-      return Response.json(
-        { success: false, error: 'Cannot book for past dates' } satisfies ApiResponse,
+        { success: false, error: 'booking_date and booking_time are required' } satisfies ApiResponse,
         { status: 400 }
       );
     }
@@ -63,12 +45,47 @@ export async function POST(request: Request) {
     }
     const adminCode = generateCode();
 
-    // Get price from menu
-    const menuItems = menuStore.getByType(body.item_type);
-    const selectedItem = body.item_name
-      ? menuItems.find((m) => m.name === body.item_name)
-      : menuItems[0];
-    const price = selectedItem?.price || (body.item_type === 'veg' ? 150 : 180);
+    let items = body.items;
+    let finalAmount = 0;
+    let finalItemName = '';
+    let finalItemType: 'veg' | 'nonveg' = 'veg';
+
+    if (items && Array.isArray(items) && items.length > 0) {
+      // Multi-item cart booking
+      finalItemType = items.some((item) => item.type === 'nonveg') ? 'nonveg' : 'veg';
+      
+      const itemSummaries = items.map((item) => {
+        const itemCost = (item.price + (item.is_parcel ? 5 : 0)) * item.quantity;
+        finalAmount += itemCost;
+        return `${item.name} x${item.quantity}${item.is_parcel ? ' (📦)' : ''}`;
+      });
+      finalItemName = itemSummaries.join(', ');
+    } else {
+      // Fallback to single item booking
+      if (!body.item_type) {
+        return Response.json(
+          { success: false, error: 'item_type is required for single item booking' } satisfies ApiResponse,
+          { status: 400 }
+        );
+      }
+      finalItemType = body.item_type;
+      const menuItems = menuStore.getByType(body.item_type);
+      const selectedItem = body.item_name
+        ? menuItems.find((m) => m.name === body.item_name)
+        : menuItems[0];
+      const basePrice = selectedItem?.price || (body.item_type === 'veg' ? 150 : 180);
+      finalAmount = basePrice + (body.is_parcel ? 5 : 0);
+      finalItemName = (selectedItem?.name || (body.item_type === 'veg' ? 'Veg Meal' : 'Non-Veg Meal')) + (body.is_parcel ? ' (📦)' : '');
+      
+      items = [{
+        id: selectedItem?.id || 'default',
+        name: selectedItem?.name || (body.item_type === 'veg' ? 'Veg Meal' : 'Non-Veg Meal'),
+        price: basePrice,
+        type: body.item_type,
+        quantity: 1,
+        is_parcel: !!body.is_parcel
+      }];
+    }
 
     // Create booking
     const bookingId = generateBookingId();
@@ -78,17 +95,18 @@ export async function POST(request: Request) {
       booking_id: bookingId,
       user_id: user.id,
       user_name: user.name,
-      item_type: body.item_type,
-      item_name: selectedItem?.name || (body.item_type === 'veg' ? 'Veg Meal' : 'Non-Veg Meal'),
+      item_type: finalItemType,
+      item_name: finalItemName,
       booking_date: body.booking_date,
       booking_time: body.booking_time,
-      amount: price,
+      amount: finalAmount,
       status: 'pending',
       user_code: userCode,
       admin_code: adminCode,
       qr_token: JSON.stringify({ booking_id: bookingId, user_code: userCode, ts: createdAt }),
       created_at: createdAt,
       served_at: null,
+      items: items,
       metadata: {
         verified_by: null,
         verified_at: null,
@@ -100,13 +118,17 @@ export async function POST(request: Request) {
     };
 
     // Compose receipt details for notification
+    const itemsText = items.map((item: any) => 
+      `• ${item.name} x${item.quantity}${item.is_parcel ? ' (Parcel)' : ''} — ₹${(item.price + (item.is_parcel ? 5 : 0)) * item.quantity}`
+    ).join('\n');
+
     const receiptText = 
       `🍽️ *IIST Cafeteria Order Receipt*\n` +
       `-----------------------------------\n` +
       `*Order ID:* ${bookingId}\n` +
       `*Verification Code:* ${userCode}\n` +
       `*Customer:* ${user.name || 'Guest'} (${user.id})\n` +
-      `*Item:* ${booking.item_name}\n` +
+      `*Items Ordered:*\n${itemsText}\n` +
       `*Time Slot:* ${booking.booking_time}\n` +
       `*Amount:* ₹${booking.amount}\n` +
       `*Payment:* ${booking.metadata.payment_method} (${booking.metadata.payment_status})\n` +
@@ -135,7 +157,7 @@ export async function POST(request: Request) {
       booking_id: bookingId,
       action: 'booking_created',
       actor_id: user.id,
-      details: { item_type: body.item_type, date: body.booking_date, time: body.booking_time },
+      details: { item_type: finalItemType, date: body.booking_date, time: body.booking_time },
       timestamp: createdAt,
     };
     auditStore.add(auditEntry);
@@ -147,7 +169,7 @@ export async function POST(request: Request) {
         user_code: userCode,
         admin_code: user.role === 'admin' ? adminCode : null,
         qr_data: { booking_id: bookingId, user_code: userCode, timestamp: createdAt },
-        amount: price,
+        amount: finalAmount,
         status: 'pending',
       },
     };

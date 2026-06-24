@@ -34,6 +34,15 @@ export interface UserPayload {
   name: string;
 }
 
+export interface BookingItem {
+  id: string;
+  name: string;
+  price: number;
+  type: MealType;
+  quantity: number;
+  is_parcel: boolean;
+}
+
 // ---- Booking ----
 export interface Booking {
   booking_id: string;
@@ -50,6 +59,7 @@ export interface Booking {
   qr_token: string;
   created_at: string;
   served_at: string | null;
+  items?: BookingItem[];
   metadata: {
     verified_by: string | null;
     verified_at: string | null;
@@ -71,6 +81,7 @@ export interface BookingCreateRequest {
   payment_utr?: string;
   phone?: string;
   email?: string;
+  items?: BookingItem[];
 }
 
 export interface BookingCreateResponse {

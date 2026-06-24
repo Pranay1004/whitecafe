@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
+import { isTokenExpired, clearClientSession } from '@/lib/clientAuth';
 
 export default function HomePage() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
@@ -11,12 +12,27 @@ export default function HomePage() {
     const token = localStorage.getItem('token');
     const user = localStorage.getItem('user');
     if (token && user) {
-      setIsLoggedIn(true);
-      try {
-        setUserName(JSON.parse(user).name);
-      } catch { /* ignore */ }
+      if (isTokenExpired(token)) {
+        clearClientSession();
+        setIsLoggedIn(false);
+        setUserName('');
+      } else {
+        setIsLoggedIn(true);
+        try {
+          setUserName(JSON.parse(user).name);
+        } catch { /* ignore */ }
+      }
+    } else {
+      setIsLoggedIn(false);
+      setUserName('');
     }
   }, []);
+
+  const handleLogout = () => {
+    clearClientSession();
+    setIsLoggedIn(false);
+    setUserName('');
+  };
 
   return (
     <div className="min-h-screen flex flex-col relative overflow-hidden">
@@ -51,6 +67,9 @@ export default function HomePage() {
               <Link href="/booking" className="btn btn-primary btn-sm">
                 Book Meal
               </Link>
+              <button onClick={handleLogout} className="btn btn-ghost text-slate-300 btn-sm cursor-pointer">
+                Sign Out
+              </button>
             </>
           ) : (
             <>

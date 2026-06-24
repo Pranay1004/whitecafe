@@ -4,7 +4,8 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { QRCodeSVG } from 'qrcode.react';
-import type { MenuItem, MealType } from '@/lib/types';
+import type { MenuItem, MealType, BookingItem } from '@/lib/types';
+import { isTokenExpired, clearClientSession } from '@/lib/clientAuth';
 
 // IIST Cafeteria time slots (hourly ranges, for reference only)
 const TIME_SLOTS = [
@@ -59,19 +60,21 @@ function isSlotExpired(slotValue: string) {
 export default function BookingPage() {
   const router = useRouter();
   const [step, setStep] = useState(1);
-  const [mealType, setMealType] = useState<MealType | ''>('');
-  const [selectedItem, setSelectedItem] = useState<MenuItem | null>(null);
-  const [selectedTime, setSelectedTime] = useState('');
   const [menuItems, setMenuItems] = useState<MenuItem[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [user, setUser] = useState<{ id: string; name: string; role: string } | null>(null);
 
+  // Cart state
+  const [cart, setCart] = useState<BookingItem[]>([]);
+  const [selectedTime, setSelectedTime] = useState('');
+  const [menuTab, setMenuTab] = useState<'all' | 'veg' | 'nonveg'>('all');
+  const [menuSearch, setMenuSearch] = useState('');
+
   // Payment states
   const [paymentMethod, setPaymentMethod] = useState<'phonepe' | 'paytm' | 'bharatpay' | 'counter'>('counter');
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [paymentSimulating, setPaymentSimulating] = useState(false);
-  const [isParcel, setIsParcel] = useState(false);
 
   const todayDate = getTodayDateString();
   const todayFormatted = new Date().toLocaleDateString('en-IN', {
@@ -91,30 +94,106 @@ export default function BookingPage() {
   // Count available (non-expired) slots
   const availableSlotCount = TIME_SLOTS.filter(s => !isSlotExpired(s.value)).length;
 
+  // Session verification on mount
   useEffect(() => {
     const token = localStorage.getItem('token');
     const userData = localStorage.getItem('user');
-    if (!token || !userData) {
+    if (!token || !userData || isTokenExpired(token)) {
+      clearClientSession();
       router.push('/login');
       return;
     }
     try {
       setUser(JSON.parse(userData));
     } catch {
+      clearClientSession();
       router.push('/login');
     }
   }, [router]);
 
+  // Load cart from localStorage
   useEffect(() => {
-    if (mealType) {
-      fetch(`/api/menu?type=${mealType}`)
-        .then((r) => r.json())
-        .then((data) => {
-          if (data.success) setMenuItems(data.data);
-        })
-        .catch(() => setMenuItems([]));
+    const savedCart = localStorage.getItem('cart');
+    if (savedCart) {
+      try {
+        setCart(JSON.parse(savedCart));
+      } catch {}
     }
-  }, [mealType]);
+  }, []);
+
+  // Save cart helper
+  const saveCart = (newCart: BookingItem[]) => {
+    setCart(newCart);
+    localStorage.setItem('cart', JSON.stringify(newCart));
+  };
+
+  // Fetch full menu once on mount
+  useEffect(() => {
+    fetch('/api/menu')
+      .then((r) => r.json())
+      .then((data) => {
+        if (data.success) setMenuItems(data.data);
+      })
+      .catch(() => setMenuItems([]));
+  }, []);
+
+  // Cart operations
+  const addToCart = (item: MenuItem) => {
+    const existing = cart.find((c) => c.id === item.id);
+    if (existing) {
+      const updated = cart.map((c) =>
+        c.id === item.id ? { ...c, quantity: c.quantity + 1 } : c
+      );
+      saveCart(updated);
+    } else {
+      const newItem: BookingItem = {
+        id: item.id,
+        name: item.name,
+        price: item.price,
+        type: item.type,
+        quantity: 1,
+        is_parcel: false,
+      };
+      saveCart([...cart, newItem]);
+    }
+  };
+
+  const removeFromCart = (itemId: string) => {
+    const existing = cart.find((c) => c.id === itemId);
+    if (!existing) return;
+    if (existing.quantity > 1) {
+      const updated = cart.map((c) =>
+        c.id === itemId ? { ...c, quantity: c.quantity - 1 } : c
+      );
+      saveCart(updated);
+    } else {
+      const updated = cart.filter((c) => c.id !== itemId);
+      saveCart(updated);
+    }
+  };
+
+  const toggleItemParcel = (itemId: string) => {
+    const updated = cart.map((c) =>
+      c.id === itemId ? { ...c, is_parcel: !c.is_parcel } : c
+    );
+    saveCart(updated);
+  };
+
+  const clearCart = () => {
+    saveCart([]);
+  };
+
+  const handleLogout = () => {
+    clearClientSession();
+    router.push('/');
+  };
+
+  const price = cart.reduce(
+    (sum, item) => sum + (item.price + (item.is_parcel ? 5 : 0)) * item.quantity,
+    0
+  );
+
+  const cartCount = cart.reduce((sum, item) => sum + item.quantity, 0);
 
   const handleBook = async (method: string = 'Pay at Counter', status: string = 'Pending', transactionUtr: string = '') => {
     setError('');
@@ -139,18 +218,22 @@ export default function BookingPage() {
           Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify({
-          item_type: mealType,
-          item_name: selectedItem?.name,
           booking_date: todayDate,
           booking_time: selectedTime,
           payment_method: method,
           payment_status: status,
           payment_utr: transactionUtr,
-          is_parcel: isParcel,
           phone,
           email,
+          items: cart,
         }),
       });
+
+      if (res.status === 401) {
+        clearClientSession();
+        router.push('/login');
+        return;
+      }
 
       const data = await res.json();
 
@@ -164,17 +247,18 @@ export default function BookingPage() {
       // Store booking data for confirmation page
       localStorage.setItem('lastBooking', JSON.stringify({
         ...data.data,
-        item_type: mealType,
-        item_name: selectedItem?.name || (mealType === 'veg' ? 'Veg Meal' : 'Non-Veg Meal'),
         booking_date: todayDate,
         booking_time: selectedTime,
         user_name: user?.name,
         payment_method: method,
         payment_status: status,
         payment_utr: transactionUtr,
-        is_parcel: isParcel,
-        amount: price,          // include parcel surcharge in the displayed amount
+        items: cart,
+        amount: price,
       }));
+
+      // Clear cart upon successful order
+      clearCart();
 
       router.push('/confirmation');
     } catch {
@@ -205,8 +289,6 @@ export default function BookingPage() {
   };
 
   const totalSteps = 3;
-  const basePrice = selectedItem?.price ?? 0;
-  const price = basePrice + (isParcel ? 5 : 0);
 
   return (
     <div className="min-h-screen bg-[var(--background)]">
@@ -226,11 +308,16 @@ export default function BookingPage() {
               <p className="text-[var(--text-tertiary)] text-xs">{todayFormatted}</p>
             </div>
           </div>
-          {user && (
-            <span className="text-sm text-[var(--text-secondary)]">
-              {user.name}
-            </span>
-          )}
+          <div className="flex items-center gap-3">
+            {user && (
+              <span className="text-sm text-[var(--text-secondary)] hidden sm:inline">
+                {user.name}
+              </span>
+            )}
+            <button onClick={handleLogout} className="btn btn-ghost text-slate-300 btn-sm cursor-pointer">
+              Sign Out
+            </button>
+          </div>
         </div>
 
         {/* Progress bar — now 3 steps */}
@@ -248,9 +335,16 @@ export default function BookingPage() {
               </div>
             ))}
           </div>
-          <p className="text-[var(--text-tertiary)] text-xs mt-2">
-            Step {step} of {totalSteps}
-          </p>
+          <div className="flex items-center justify-between mt-2">
+            <p className="text-[var(--text-tertiary)] text-xs">
+              Step {step} of {totalSteps}
+            </p>
+            {cartCount > 0 && step === 2 && (
+              <span className="text-xs font-semibold text-amber-500">
+                🛒 {cartCount} items in cart (₹{price})
+              </span>
+            )}
+          </div>
         </div>
       </header>
 
@@ -270,185 +364,251 @@ export default function BookingPage() {
           </div>
         )}
 
-        {/* Step 1: Meal Type + Time Slot (combined) */}
+        {/* Step 1: Time Slot selection */}
         {step === 1 && (
           <div className="animate-slide-up">
             <h2 className="text-2xl font-bold mb-2" style={{ fontFamily: 'var(--font-space-grotesk)' }}>
-              What are you craving?
+              Pick a time slot
             </h2>
-            <p className="text-[var(--text-secondary)] mb-8">Select your meal preference</p>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-10">
-              <button
-                onClick={() => { setMealType('veg'); setSelectedItem(null); }}
-                className={`group relative overflow-hidden p-6 rounded-2xl border-2 text-left transition-all duration-300 ${
-                  mealType === 'veg'
-                    ? 'border-emerald-500 bg-emerald-50 dark:bg-emerald-900/20'
-                    : 'border-[var(--border)] hover:border-emerald-300'
-                }`}
-                id="select-veg"
-              >
-                <div className="absolute top-4 right-4 w-16 h-16 text-5xl opacity-20 group-hover:opacity-40 transition-opacity">
-                  🥬
-                </div>
-                <div className="w-12 h-12 rounded-xl bg-emerald-100 dark:bg-emerald-900/30 flex items-center justify-center text-2xl mb-4">
-                  🥗
-                </div>
-                <h3 className="text-lg font-bold mb-1 text-emerald-700 dark:text-emerald-400">Vegetarian</h3>
-                <p className="text-[var(--text-secondary)] text-sm mb-3">
-                  Paneer Rice, Veg Noodles, Dal Tadka, Gobi Manchurian &amp; more
-                </p>
-                <span className="inline-flex items-center gap-1 text-emerald-600 dark:text-emerald-400 font-bold text-lg">
-                  ₹8 – ₹90
-                </span>
-              </button>
-
-              <button
-                onClick={() => { setMealType('nonveg'); setSelectedItem(null); }}
-                className={`group relative overflow-hidden p-6 rounded-2xl border-2 text-left transition-all duration-300 ${
-                  mealType === 'nonveg'
-                    ? 'border-red-500 bg-red-50 dark:bg-red-900/20'
-                    : 'border-[var(--border)] hover:border-red-300'
-                }`}
-                id="select-nonveg"
-              >
-                <div className="absolute top-4 right-4 w-16 h-16 text-5xl opacity-20 group-hover:opacity-40 transition-opacity">
-                  🍗
-                </div>
-                <div className="w-12 h-12 rounded-xl bg-red-100 dark:bg-red-900/30 flex items-center justify-center text-2xl mb-4">
-                  🍖
-                </div>
-                <h3 className="text-lg font-bold mb-1 text-red-700 dark:text-red-400">Non-Vegetarian</h3>
-                <p className="text-[var(--text-secondary)] text-sm mb-3">
-                  Chicken Rice, Egg Noodles, Butter Chicken, Chicken 65 &amp; more
-                </p>
-                <span className="inline-flex items-center gap-1 text-red-600 dark:text-red-400 font-bold text-lg">
-                  ₹30 – ₹100
-                </span>
-              </button>
-            </div>
-
-            {/* Time Slot Selection — same-day only */}
-            {mealType && (
-              <div className="animate-slide-up">
-                <h3 className="text-xl font-bold mb-2" style={{ fontFamily: 'var(--font-space-grotesk)' }}>
-                  Pick a time slot
-                </h3>
-                <p className="text-[var(--text-secondary)] text-sm mb-6">
-                  Booking for <strong>today</strong> — {todayFormatted}
-                </p>
-
-                {Object.entries(slotsByPeriod).map(([period, slots]) => {
-                  const allExpired = slots.every(s => isSlotExpired(s.value));
-                  return (
-                    <div key={period} className="mb-6">
-                      <p className={`text-sm font-semibold mb-2 ${allExpired ? 'text-[var(--text-tertiary)] line-through' : 'text-[var(--text-secondary)]'}`}>
-                        {PERIOD_ICONS[period]} {period}
-                        {allExpired && <span className="ml-2 text-xs font-normal">(passed)</span>}
-                      </p>
-                      <div className="grid grid-cols-3 gap-2">
-                        {slots.map((slot) => {
-                          const expired = isSlotExpired(slot.value);
-                          return (
-                            <button
-                              key={slot.value}
-                              onClick={() => !expired && setSelectedTime(slot.value)}
-                              disabled={expired}
-                              className={`py-4 px-2 rounded-xl border-2 text-center font-bold text-sm transition-all active:scale-95 ${
-                                expired
-                                  ? 'border-[var(--border)] text-[var(--text-tertiary)] opacity-40 cursor-not-allowed line-through'
-                                  : selectedTime === slot.value
-                                    ? 'border-amber-500 bg-amber-50 dark:bg-amber-900/20 text-amber-600'
-                                    : 'border-[var(--border)] hover:border-amber-300 text-[var(--text-primary)]'
-                              }`}
-                            >
-                              {slot.label}
-                            </button>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  );
-                })}
-
-                <button
-                  onClick={() => setStep(2)}
-                  disabled={!selectedTime || !mealType}
-                  className="btn btn-primary btn-xl w-full mt-6"
-                >
-                  Continue to Menu →
-                </button>
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* Step 2: Select Menu Item */}
-        {step === 2 && (
-          <div className="animate-slide-up">
-            <h2 className="text-2xl font-bold mb-2" style={{ fontFamily: 'var(--font-space-grotesk)' }}>
-              Pick your dish
-            </h2>
-            <p className="text-[var(--text-secondary)] mb-8">
-              Choose from our {mealType === 'veg' ? 'vegetarian' : 'non-vegetarian'} menu
+            <p className="text-[var(--text-secondary)] text-sm mb-6">
+              Booking for <strong>today</strong> — {todayFormatted}
             </p>
 
-            <div className="space-y-3 stagger">
-              {menuItems.map((item) => (
-                <button
-                  key={item.id}
-                  onClick={() => { setSelectedItem(item); setStep(3); }}
-                  className={`w-full p-5 rounded-xl border-2 text-left transition-all duration-200 hover:-translate-y-0.5 ${
-                    selectedItem?.id === item.id
-                      ? mealType === 'veg'
-                        ? 'border-emerald-500 bg-emerald-50 dark:bg-emerald-900/20'
-                        : 'border-red-500 bg-red-50 dark:bg-red-900/20'
-                      : 'border-[var(--border)] hover:border-[var(--text-tertiary)] hover:shadow-md'
-                  }`}
-                >
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <h3 className="font-semibold text-lg">{item.name}</h3>
-                      <p className="text-[var(--text-secondary)] text-sm mt-1">{item.description}</p>
-                    </div>
-                    <div className="flex flex-col items-end gap-2">
-                      <span className={`font-bold text-lg ${mealType === 'veg' ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400'}`}>
-                        ₹{item.price}
-                      </span>
-                      <span className={`badge ${mealType === 'veg' ? 'badge-veg' : 'badge-nonveg'}`}>
-                        {item.type === 'veg' ? '🟢 Veg' : '🔴 Non-Veg'}
-                      </span>
-                    </div>
+            {Object.entries(slotsByPeriod).map(([period, slots]) => {
+              const allExpired = slots.every(s => isSlotExpired(s.value));
+              return (
+                <div key={period} className="mb-6">
+                  <p className={`text-sm font-semibold mb-2 ${allExpired ? 'text-[var(--text-tertiary)] line-through' : 'text-[var(--text-secondary)]'}`}>
+                    {PERIOD_ICONS[period]} {period}
+                    {allExpired && <span className="ml-2 text-xs font-normal">(passed)</span>}
+                  </p>
+                  <div className="grid grid-cols-3 gap-2">
+                    {slots.map((slot) => {
+                      const expired = isSlotExpired(slot.value);
+                      return (
+                        <button
+                          key={slot.value}
+                          onClick={() => !expired && setSelectedTime(slot.value)}
+                          disabled={expired}
+                          className={`py-4 px-2 rounded-xl border-2 text-center font-bold text-sm transition-all active:scale-95 cursor-pointer ${
+                            expired
+                              ? 'border-[var(--border)] text-[var(--text-tertiary)] opacity-40 cursor-not-allowed line-through'
+                              : selectedTime === slot.value
+                                ? 'border-amber-500 bg-amber-50 dark:bg-amber-900/20 text-amber-600'
+                                : 'border-[var(--border)] hover:border-amber-300 text-[var(--text-primary)]'
+                          }`}
+                        >
+                          {slot.label}
+                        </button>
+                      );
+                    })}
                   </div>
-                </button>
-              ))}
-            </div>
+                </div>
+              );
+            })}
 
-            <button onClick={() => setStep(1)} className="btn btn-ghost mt-6">
-              ← Change meal type
+            <button
+              onClick={() => setStep(2)}
+              disabled={!selectedTime}
+              className="btn btn-primary btn-xl w-full mt-6"
+            >
+              Select Dishes →
             </button>
           </div>
         )}
 
-        {/* Step 3: Confirm & Book */}
+        {/* Step 2: Add Menu Items to Cart */}
+        {step === 2 && (
+          <div className="animate-slide-up pb-24">
+            <h2 className="text-2xl font-bold mb-1" style={{ fontFamily: 'var(--font-space-grotesk)' }}>
+              Add items to your cart
+            </h2>
+            <p className="text-[var(--text-secondary)] text-sm mb-6">
+              Choose from our fresh cafeteria menu
+            </p>
+
+            {/* Filter Tabs & Search */}
+            <div className="space-y-4 mb-6">
+              <div className="relative">
+                <svg className="absolute left-4 top-1/2 -translate-y-1/2 text-[var(--text-tertiary)]" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+                </svg>
+                <input
+                  type="search"
+                  className="input input-mobile pl-10"
+                  placeholder="Search dishes…"
+                  value={menuSearch}
+                  onChange={(e) => setMenuSearch(e.target.value)}
+                />
+              </div>
+
+              <div className="flex gap-2 overflow-x-auto pb-1">
+                {(['all', 'veg', 'nonveg'] as const).map((t) => (
+                  <button
+                    key={t}
+                    onClick={() => setMenuTab(t)}
+                    className={`btn btn-sm flex-shrink-0 transition-all cursor-pointer ${
+                      menuTab === t ? 'btn-primary' : 'btn-ghost border border-[var(--border)]'
+                    }`}
+                  >
+                    {t === 'all' ? '🍽 All' : t === 'veg' ? '🟢 Veg' : '🔴 Non-Veg'}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Menu List */}
+            <div className="space-y-3 stagger">
+              {menuItems
+                .filter((item) => {
+                  if (menuTab === 'veg' && item.type !== 'veg') return false;
+                  if (menuTab === 'nonveg' && item.type !== 'nonveg') return false;
+                  if (menuSearch && !item.name.toLowerCase().includes(menuSearch.toLowerCase())) return false;
+                  return true;
+                })
+                .map((item) => {
+                  const cartItem = cart.find((c) => c.id === item.id);
+                  const isVeg = item.type === 'veg';
+                  return (
+                    <div
+                      key={item.id}
+                      className={`p-4 rounded-xl border-2 flex items-center justify-between transition-all ${
+                        cartItem
+                          ? isVeg
+                            ? 'border-emerald-500 bg-emerald-50/20 dark:bg-emerald-900/10'
+                            : 'border-red-500 bg-red-50/20 dark:bg-red-900/10'
+                          : 'border-[var(--border)] hover:border-[var(--text-tertiary)]'
+                      }`}
+                    >
+                      <div className="flex-1 pr-3">
+                        <div className="flex items-center gap-1.5 mb-1">
+                          <span className={`w-2.5 h-2.5 rounded-sm border-2 flex-shrink-0 ${isVeg ? 'border-emerald-600' : 'border-red-600'}`}>
+                            <span className={`block w-1 h-1 rounded-full mx-auto mt-0.5 ${isVeg ? 'bg-emerald-600' : 'bg-red-600'}`} />
+                          </span>
+                          <h3 className="font-semibold text-base">{item.name}</h3>
+                        </div>
+                        <p className="text-[var(--text-secondary)] text-xs">{item.description}</p>
+                        <span className={`inline-block font-bold text-sm mt-1 ${isVeg ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400'}`}>
+                          ₹{item.price}
+                        </span>
+                      </div>
+                      
+                      {/* Quantity Controller / Add Button */}
+                      <div className="flex-shrink-0 ml-4">
+                        {cartItem ? (
+                          <div className="flex items-center bg-slate-900 border border-[var(--border)] rounded-xl overflow-hidden text-white">
+                            <button
+                              onClick={() => removeFromCart(item.id)}
+                              className="px-3 py-2 text-lg font-bold text-amber-500 hover:bg-slate-800 transition-colors cursor-pointer"
+                            >
+                              −
+                            </button>
+                            <span className="px-3 font-semibold text-sm">
+                              {cartItem.quantity}
+                            </span>
+                            <button
+                              onClick={() => addToCart(item)}
+                              className="px-3 py-2 text-lg font-bold text-amber-500 hover:bg-slate-800 transition-colors cursor-pointer"
+                            >
+                              +
+                            </button>
+                          </div>
+                        ) : (
+                          <button
+                            onClick={() => addToCart(item)}
+                            className="btn btn-sm btn-primary cursor-pointer px-4"
+                          >
+                            Add +
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+            </div>
+
+            {/* Sticky Bottom Cart Bar */}
+            {cartCount > 0 && (
+              <div className="fixed bottom-0 left-0 right-0 z-40 bg-slate-900/90 backdrop-blur-md border-t border-[var(--border)] py-4 px-6 text-white">
+                <div className="max-w-3xl mx-auto flex items-center justify-between">
+                  <div className="text-left">
+                    <p className="text-slate-400 text-xs uppercase tracking-wide">Selected items</p>
+                    <p className="font-bold text-lg">
+                      {cartCount} {cartCount === 1 ? 'item' : 'items'} · <span className="text-amber-500">₹{price}</span>
+                    </p>
+                  </div>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={clearCart}
+                      className="btn btn-ghost text-slate-400 btn-sm cursor-pointer"
+                    >
+                      Clear
+                    </button>
+                    <button
+                      onClick={() => setStep(3)}
+                      className="btn btn-primary btn-md cursor-pointer animate-pulse-glow"
+                    >
+                      Checkout →
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            <button onClick={() => setStep(1)} className="btn btn-ghost mt-6">
+              ← Change slot
+            </button>
+          </div>
+        )}
+
+        {/* Step 3: Checkout and Confirm */}
         {step === 3 && (
           <div className="animate-slide-up">
             <h2 className="text-2xl font-bold mb-2" style={{ fontFamily: 'var(--font-space-grotesk)' }}>
               Confirm your order
             </h2>
-            <p className="text-[var(--text-secondary)] mb-8">Review your booking details</p>
+            <p className="text-[var(--text-secondary)] mb-8">Review your cart details and payment method</p>
 
             <div className="card p-6 mb-6">
               <div className="space-y-4">
-                <div className="flex justify-between items-center pb-4 border-b border-[var(--border)]">
-                  <span className="text-[var(--text-secondary)]">Meal</span>
-                  <div className="flex items-center gap-2">
-                    <span className={`badge ${mealType === 'veg' ? 'badge-veg' : 'badge-nonveg'}`}>
-                      {mealType === 'veg' ? '🟢 Veg' : '🔴 Non-Veg'}
-                    </span>
-                    <span className="font-semibold">{selectedItem?.name}</span>
+                <div className="border-b border-[var(--border)] pb-3 text-left">
+                  <p className="text-xs font-semibold uppercase tracking-wider text-[var(--text-secondary)] mb-2">Selected Items</p>
+                  <div className="space-y-3">
+                    {cart.map((item) => (
+                      <div key={item.id} className="flex flex-col bg-[var(--surface-elevated)] p-3 rounded-xl border border-[var(--border)]">
+                        <div className="flex justify-between items-center">
+                          <div className="flex items-center gap-2">
+                            <span className={`w-2 h-2 rounded-full ${item.type === 'veg' ? 'bg-emerald-500' : 'bg-red-500'}`} />
+                            <span className="font-semibold text-sm">{item.name}</span>
+                            <span className="text-xs text-[var(--text-tertiary)]">x{item.quantity}</span>
+                          </div>
+                          <span className="font-bold text-sm">₹{(item.price + (item.is_parcel ? 5 : 0)) * item.quantity}</span>
+                        </div>
+                        
+                        {/* Parcel Toggle for each Item */}
+                        <div className="flex items-center justify-between mt-2 pt-2 border-t border-[var(--border)] border-dashed">
+                          <span className="text-xs text-[var(--text-tertiary)]">
+                            Pack as Parcel (+₹5 per unit)
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => toggleItemParcel(item.id)}
+                            className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors duration-200 focus:outline-none cursor-pointer ${
+                              item.is_parcel ? 'bg-amber-500' : 'bg-[var(--border)]'
+                            }`}
+                          >
+                            <span
+                              className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white shadow transition-transform duration-200 ${
+                                item.is_parcel ? 'translate-x-4' : 'translate-x-0.5'
+                              }`}
+                            />
+                          </button>
+                        </div>
+                      </div>
+                    ))}
                   </div>
                 </div>
+
                 <div className="flex justify-between items-center pb-4 border-b border-[var(--border)]">
                   <span className="text-[var(--text-secondary)]">Date</span>
                   <span className="font-semibold">{todayFormatted}</span>
@@ -472,7 +632,7 @@ export default function BookingPage() {
                     >
                       <span className="text-lg mb-1">📱</span>
                       <div>
-                        <p className="font-bold text-xs">PhonePe</p>
+                        <p className="font-bold text-xs text-[var(--text-primary)]">PhonePe</p>
                         <p className="text-[var(--text-tertiary)] text-[10px]">Mock UPI Gateway</p>
                       </div>
                     </button>
@@ -484,7 +644,7 @@ export default function BookingPage() {
                     >
                       <span className="text-lg mb-1">💳</span>
                       <div>
-                        <p className="font-bold text-xs">Paytm</p>
+                        <p className="font-bold text-xs text-[var(--text-primary)]">Paytm</p>
                         <p className="text-[var(--text-tertiary)] text-[10px]">Fast UPI checkout</p>
                       </div>
                     </button>
@@ -496,7 +656,7 @@ export default function BookingPage() {
                     >
                       <span className="text-lg mb-1">🌀</span>
                       <div>
-                        <p className="font-bold text-xs">BharatPe</p>
+                        <p className="font-bold text-xs text-[var(--text-primary)]">BharatPe</p>
                         <p className="text-[var(--text-tertiary)] text-[10px]">Scan & Pay QR</p>
                       </div>
                     </button>
@@ -508,45 +668,17 @@ export default function BookingPage() {
                     >
                       <span className="text-lg mb-1">💵</span>
                       <div>
-                        <p className="font-bold text-xs">Pay at Counter</p>
+                        <p className="font-bold text-xs text-[var(--text-primary)]">Pay at Counter</p>
                         <p className="text-[var(--text-tertiary)] text-[10px]">Pay Cash at counter</p>
                       </div>
                     </button>
                   </div>
                 </div>
 
-                {/* Parcel Toggle */}
-                <div className="py-4 border-b border-[var(--border)] flex items-center justify-between">
-                  <div>
-                    <p className="font-semibold text-sm">Parcel / Takeaway</p>
-                    <p className="text-[var(--text-tertiary)] text-xs mt-0.5">+₹5 packing charge per dish</p>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => setIsParcel((v) => !v)}
-                    className={`relative inline-flex h-7 w-12 items-center rounded-full transition-colors duration-200 focus:outline-none ${
-                      isParcel ? 'bg-amber-500' : 'bg-[var(--border)]'
-                    }`}
-                    aria-label="Toggle parcel"
-                  >
-                    <span
-                      className={`inline-block h-5 w-5 transform rounded-full bg-white shadow transition-transform duration-200 ${
-                        isParcel ? 'translate-x-6' : 'translate-x-1'
-                      }`}
-                    />
-                  </button>
-                </div>
-
                 <div className="flex justify-between items-center pt-2">
-                  <span className="text-[var(--text-secondary)]">Amount</span>
+                  <span className="text-[var(--text-secondary)]">Total Amount</span>
                   <div className="text-right">
-                    {isParcel && (
-                      <p className="text-[var(--text-tertiary)] text-xs line-through">₹{basePrice}</p>
-                    )}
                     <span className="text-2xl font-bold gradient-text">₹{price}</span>
-                    {isParcel && (
-                      <p className="text-amber-500 text-xs font-medium mt-0.5">incl. ₹5 parcel charge</p>
-                    )}
                   </div>
                 </div>
               </div>
@@ -558,12 +690,12 @@ export default function BookingPage() {
               </button>
               <button
                 onClick={handleConfirmBookingClick}
-                disabled={loading}
+                disabled={loading || cart.length === 0}
                 className="btn btn-primary btn-lg flex-1 animate-pulse-glow"
                 id="confirm-booking"
               >
                 {loading ? (
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 justify-center">
                     <svg className="animate-spin h-5 w-5" viewBox="0 0 24 24">
                       <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none"/>
                       <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"/>
@@ -619,11 +751,11 @@ export default function BookingPage() {
                     <p className="text-slate-300 text-xs text-center leading-relaxed">
                       Please make the payment using the QR code above. Once paid, click the button below to confirm.
                     </p>
-                    <div className="p-3 bg-slate-950/50 border border-slate-800 rounded-xl">
-                      <p className="text-[10px] text-amber-400 font-semibold text-center uppercase tracking-wide">
+                    <div className="p-3 bg-slate-950/50 border border-slate-800 rounded-xl text-center">
+                      <p className="text-[10px] text-amber-400 font-semibold uppercase tracking-wide">
                         💡 Verification Note
                       </p>
-                      <p className="text-[10px] text-slate-400 text-center mt-1 leading-normal">
+                      <p className="text-[10px] text-slate-400 mt-1 leading-normal">
                         Show the payment success screen on your phone to counter staff when collecting your meal.
                       </p>
                     </div>

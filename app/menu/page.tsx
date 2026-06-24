@@ -1,7 +1,8 @@
 'use client';
 
 import Link from 'next/link';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { isTokenExpired, clearClientSession } from '@/lib/clientAuth';
 
 // ── Real IIST Cafeteria Menu ──────────────────────────────────────────────────
 const VEG_ITEMS = [
@@ -50,6 +51,34 @@ type Tab = 'all' | 'veg' | 'nonveg';
 export default function MenuPage() {
   const [tab, setTab] = useState<Tab>('all');
   const [search, setSearch] = useState('');
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [userName, setUserName] = useState('');
+
+  useEffect(() => {
+    const token = localStorage.getItem('token');
+    const user = localStorage.getItem('user');
+    if (token && user) {
+      if (isTokenExpired(token)) {
+        clearClientSession();
+        setIsLoggedIn(false);
+        setUserName('');
+      } else {
+        setIsLoggedIn(true);
+        try {
+          setUserName(JSON.parse(user).name);
+        } catch { /* ignore */ }
+      }
+    } else {
+      setIsLoggedIn(false);
+      setUserName('');
+    }
+  }, []);
+
+  const handleLogout = () => {
+    clearClientSession();
+    setIsLoggedIn(false);
+    setUserName('');
+  };
 
   const filterItems = (items: typeof VEG_ITEMS) =>
     items.filter((i) => i.name.toLowerCase().includes(search.toLowerCase()));
@@ -79,9 +108,23 @@ export default function MenuPage() {
               <p className="text-[var(--text-tertiary)] text-xs">{totalShown} items available</p>
             </div>
           </div>
-          <Link href="/booking" className="btn btn-primary btn-sm">
-            Book Now →
-          </Link>
+          <div className="flex items-center gap-2">
+            {isLoggedIn ? (
+              <>
+                <span className="text-slate-300 text-sm hidden md:block">Welcome, {userName}</span>
+                <button onClick={handleLogout} className="btn btn-ghost text-slate-300 btn-sm cursor-pointer">
+                  Sign Out
+                </button>
+              </>
+            ) : (
+              <Link href="/login" className="btn btn-ghost text-slate-300 btn-sm">
+                Sign In
+              </Link>
+            )}
+            <Link href="/booking" className="btn btn-primary btn-sm">
+              Book Now →
+            </Link>
+          </div>
         </div>
       </header>
 
