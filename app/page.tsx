@@ -41,7 +41,10 @@ export default function HomePage() {
             <p className="text-slate-400 text-xs">Trivandrum</p>
           </div>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2">
+          <Link href="/menu" className="btn btn-ghost text-slate-300 btn-sm hidden sm:inline-flex">
+            Menu
+          </Link>
           {isLoggedIn ? (
             <>
               <span className="text-slate-300 text-sm hidden md:block">Welcome, {userName}</span>
@@ -95,6 +98,13 @@ export default function HomePage() {
                 <path d="M2 12l10 5 10-5" />
               </svg>
               Book Your Meal
+            </Link>
+            <Link
+              href="/menu"
+              className="btn btn-secondary btn-lg w-full sm:w-auto border-amber-600/50 text-amber-400 hover:bg-amber-900/20"
+              id="hero-menu"
+            >
+              🍽 View Full Menu
             </Link>
             <Link
               href="/guest"
