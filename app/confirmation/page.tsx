@@ -18,6 +18,7 @@ interface BookingData {
   payment_method?: string;
   payment_status?: string;
   payment_utr?: string;
+  is_parcel?: boolean;
   qr_data: {
     booking_id: string;
     user_code: number;
@@ -192,6 +193,16 @@ export default function ConfirmationPage() {
             <div className="flex justify-between items-center">
               <span className="text-[var(--text-secondary)] text-sm">Payment Method</span>
               <span className="font-medium text-sm capitalize text-[var(--text-primary)]">{booking.payment_method || 'Pay at Counter'}</span>
+            </div>
+            <div className="flex justify-between items-center">
+              <span className="text-[var(--text-secondary)] text-sm">Parcel</span>
+              <span className={`badge text-xs font-semibold ${
+                booking.is_parcel
+                  ? 'bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400'
+                  : 'bg-[var(--border-light)] text-[var(--text-tertiary)]'
+              }`}>
+                {booking.is_parcel ? '📦 Parcel (+₹5)' : '🍽 Dine-in'}
+              </span>
             </div>
             {booking.payment_utr && booking.payment_utr !== 'UPI' && (
               <div className="flex justify-between items-center">

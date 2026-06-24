@@ -71,6 +71,7 @@ export default function BookingPage() {
   const [paymentMethod, setPaymentMethod] = useState<'phonepe' | 'paytm' | 'bharatpay' | 'counter'>('counter');
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [paymentSimulating, setPaymentSimulating] = useState(false);
+  const [isParcel, setIsParcel] = useState(false);
 
   const todayDate = getTodayDateString();
   const todayFormatted = new Date().toLocaleDateString('en-IN', {
@@ -145,6 +146,7 @@ export default function BookingPage() {
           payment_method: method,
           payment_status: status,
           payment_utr: transactionUtr,
+          is_parcel: isParcel,
           phone,
           email,
         }),
@@ -170,6 +172,8 @@ export default function BookingPage() {
         payment_method: method,
         payment_status: status,
         payment_utr: transactionUtr,
+        is_parcel: isParcel,
+        amount: price,          // include parcel surcharge in the displayed amount
       }));
 
       router.push('/confirmation');
@@ -201,7 +205,8 @@ export default function BookingPage() {
   };
 
   const totalSteps = 3;
-  const price = selectedItem?.price ?? 0;
+  const basePrice = selectedItem?.price ?? 0;
+  const price = basePrice + (isParcel ? 5 : 0);
 
   return (
     <div className="min-h-screen bg-[var(--background)]">
@@ -510,9 +515,39 @@ export default function BookingPage() {
                   </div>
                 </div>
 
+                {/* Parcel Toggle */}
+                <div className="py-4 border-b border-[var(--border)] flex items-center justify-between">
+                  <div>
+                    <p className="font-semibold text-sm">Parcel / Takeaway</p>
+                    <p className="text-[var(--text-tertiary)] text-xs mt-0.5">+₹5 packing charge per dish</p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setIsParcel((v) => !v)}
+                    className={`relative inline-flex h-7 w-12 items-center rounded-full transition-colors duration-200 focus:outline-none ${
+                      isParcel ? 'bg-amber-500' : 'bg-[var(--border)]'
+                    }`}
+                    aria-label="Toggle parcel"
+                  >
+                    <span
+                      className={`inline-block h-5 w-5 transform rounded-full bg-white shadow transition-transform duration-200 ${
+                        isParcel ? 'translate-x-6' : 'translate-x-1'
+                      }`}
+                    />
+                  </button>
+                </div>
+
                 <div className="flex justify-between items-center pt-2">
                   <span className="text-[var(--text-secondary)]">Amount</span>
-                  <span className="text-2xl font-bold gradient-text">₹{price}</span>
+                  <div className="text-right">
+                    {isParcel && (
+                      <p className="text-[var(--text-tertiary)] text-xs line-through">₹{basePrice}</p>
+                    )}
+                    <span className="text-2xl font-bold gradient-text">₹{price}</span>
+                    {isParcel && (
+                      <p className="text-amber-500 text-xs font-medium mt-0.5">incl. ₹5 parcel charge</p>
+                    )}
+                  </div>
                 </div>
               </div>
             </div>
