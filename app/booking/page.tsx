@@ -6,33 +6,35 @@ import Link from 'next/link';
 import { QRCodeSVG } from 'qrcode.react';
 import type { MenuItem, MealType } from '@/lib/types';
 
-// Actual IIST Cafeteria time slots
+// IIST Cafeteria time slots (hourly ranges, for reference only)
 const TIME_SLOTS = [
-  { value: '07:30', label: '7:30 AM', period: 'Breakfast' },
-  { value: '08:00', label: '8:00 AM', period: 'Breakfast' },
-  { value: '08:30', label: '8:30 AM', period: 'Breakfast' },
-  { value: '09:00', label: '9:00 AM', period: 'Breakfast' },
-  { value: '09:30', label: '9:30 AM', period: 'Breakfast' },
-  { value: '12:00', label: '12:00 PM', period: 'Lunch' },
-  { value: '12:30', label: '12:30 PM', period: 'Lunch' },
-  { value: '13:00', label: '1:00 PM', period: 'Lunch' },
-  { value: '13:30', label: '1:30 PM', period: 'Lunch' },
-  { value: '14:00', label: '2:00 PM', period: 'Lunch' },
-  { value: '16:00', label: '4:00 PM', period: 'Snacks' },
-  { value: '16:30', label: '4:30 PM', period: 'Snacks' },
-  { value: '17:00', label: '5:00 PM', period: 'Snacks' },
-  { value: '19:00', label: '7:00 PM', period: 'Dinner' },
-  { value: '19:30', label: '7:30 PM', period: 'Dinner' },
-  { value: '20:00', label: '8:00 PM', period: 'Dinner' },
-  { value: '20:30', label: '8:30 PM', period: 'Dinner' },
-  { value: '21:00', label: '9:00 PM', period: 'Dinner' },
+  // Morning
+  { value: '08:00', label: '8 – 9 AM',   period: 'Morning' },
+  { value: '09:00', label: '9 – 10 AM',  period: 'Morning' },
+  { value: '10:00', label: '10 – 11 AM', period: 'Morning' },
+  { value: '11:00', label: '11 – 12 PM', period: 'Morning' },
+  // Afternoon
+  { value: '12:00', label: '12 – 1 PM',  period: 'Afternoon' },
+  { value: '13:00', label: '1 – 2 PM',   period: 'Afternoon' },
+  { value: '14:00', label: '2 – 3 PM',   period: 'Afternoon' },
+  { value: '15:00', label: '3 – 4 PM',   period: 'Afternoon' },
+  { value: '16:00', label: '4 – 5 PM',   period: 'Afternoon' },
+  // Evening
+  { value: '17:00', label: '5 – 6 PM',   period: 'Evening' },
+  { value: '18:00', label: '6 – 7 PM',   period: 'Evening' },
+  { value: '19:00', label: '7 – 8 PM',   period: 'Evening' },
+  // Night
+  { value: '20:00', label: '8 – 9 PM',   period: 'Night' },
+  { value: '21:00', label: '9 – 10 PM',  period: 'Night' },
+  { value: '22:00', label: '10 – 11 PM', period: 'Night' },
 ];
 
+
 const PERIOD_ICONS: Record<string, string> = {
-  Breakfast: '🌅',
-  Lunch: '🌤',
-  Snacks: '☕',
-  Dinner: '🌙',
+  Morning:   '🌅',
+  Afternoon: '☀️',
+  Evening:   '🌇',
+  Night:     '🌙',
 };
 
 function getTodayDateString() {
@@ -199,7 +201,7 @@ export default function BookingPage() {
   };
 
   const totalSteps = 3;
-  const price = selectedItem?.price || (mealType === 'veg' ? 150 : mealType === 'nonveg' ? 180 : 0);
+  const price = selectedItem?.price ?? 0;
 
   return (
     <div className="min-h-screen bg-[var(--background)]">
@@ -289,10 +291,10 @@ export default function BookingPage() {
                 </div>
                 <h3 className="text-lg font-bold mb-1 text-emerald-700 dark:text-emerald-400">Vegetarian</h3>
                 <p className="text-[var(--text-secondary)] text-sm mb-3">
-                  Paneer Biryani, Chole Bhature, Mixed Veg Curry
+                  Paneer Rice, Veg Noodles, Dal Tadka, Gobi Manchurian &amp; more
                 </p>
                 <span className="inline-flex items-center gap-1 text-emerald-600 dark:text-emerald-400 font-bold text-lg">
-                  ₹150
+                  ₹8 – ₹90
                 </span>
               </button>
 
@@ -313,10 +315,10 @@ export default function BookingPage() {
                 </div>
                 <h3 className="text-lg font-bold mb-1 text-red-700 dark:text-red-400">Non-Vegetarian</h3>
                 <p className="text-[var(--text-secondary)] text-sm mb-3">
-                  Chicken Biryani, Mutton Keema, Fish Curry
+                  Chicken Rice, Egg Noodles, Butter Chicken, Chicken 65 &amp; more
                 </p>
                 <span className="inline-flex items-center gap-1 text-red-600 dark:text-red-400 font-bold text-lg">
-                  ₹180
+                  ₹30 – ₹100
                 </span>
               </button>
             </div>

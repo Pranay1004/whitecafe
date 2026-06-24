@@ -77,27 +77,46 @@ export async function seedIfNeeded() {
     locked_until: null,
   });
 
-  // Default menu items
+  // Real IIST Cafeteria menu
   const vegItems = [
-    { name: 'Paneer Biryani', desc: 'Aromatic basmati rice with paneer tikka', price: 150 },
-    { name: 'Chole Bhature', desc: 'Spicy chickpea curry with fluffy fried bread', price: 150 },
-    { name: 'Mixed Veg Curry', desc: 'Seasonal vegetables in rich gravy', price: 120 },
-    { name: 'Veg Roll', desc: 'Flaky flatbread wrapped with spiced vegetables', price: 60 },
-    { name: 'Veg Fried Rice', desc: 'Basmati rice tossed with fresh garden vegetables', price: 100 },
-    { name: 'Dal Khichdi', desc: 'Comforting lentil and rice porridge served with ghee', price: 90 },
-    { name: 'Medu Vada (2 pcs)', desc: 'Crispy fried lentil donuts served with sambar & chutney', price: 40 },
-    { name: 'Masala Dosa', desc: 'Crispy rice crepe filled with potato masala', price: 70 },
-    { name: 'Samosa (2 pcs)', desc: 'Crispy pastry shells filled with spiced potatoes', price: 30 },
+    { name: 'Paneer Rice',          desc: 'Fragrant rice cooked with paneer and spices',             price: 90 },
+    { name: 'Paneer Noodles',       desc: 'Wok-tossed noodles with paneer and vegetables',           price: 85 },
+    { name: 'Gobi Rice',            desc: 'Spiced cauliflower fried rice',                           price: 80 },
+    { name: 'Jeera Rice',           desc: 'Basmati rice tempered with cumin',                        price: 55 },
+    { name: 'Tomato Rice',          desc: 'Tangy south-Indian style tomato rice',                    price: 55 },
+    { name: 'Veg Noodles',          desc: 'Stir-fried noodles with garden vegetables',               price: 50 },
+    { name: 'Veg Rice',             desc: 'Simple steamed rice with mixed veg stir-fry',             price: 50 },
+    { name: 'Paneer Kothuparota',   desc: 'Shredded parota chopped with paneer and masala',          price: 90 },
+    { name: 'Dal Kichadi',          desc: 'Comforting lentil and rice porridge with ghee',           price: 70 },
+    { name: 'Dal Fry',              desc: 'Yellow lentils tempered with garlic and cumin',           price: 65 },
+    { name: 'Dal Tadka',            desc: 'Creamy lentils finished with a smoky tadka',              price: 70 },
+    { name: 'Parota',               desc: 'Flaky layered flatbread (per piece)',                     price: 8  },
+    { name: 'Paneer Butter Masala', desc: 'Paneer in rich tomato-butter gravy',                     price: 90 },
+    { name: 'Chilly Paneer',        desc: 'Indo-Chinese crispy paneer in chilli sauce',              price: 90 },
+    { name: 'Kadai Paneer',         desc: 'Paneer cooked with bell peppers in kadai masala',         price: 85 },
+    { name: 'Gobi Manchurian',      desc: 'Crispy cauliflower florets in Manchurian sauce',          price: 80 },
+    { name: 'Tomato Fry',           desc: 'Tangy dry-fried tomato side dish',                        price: 60 },
+    { name: 'Veg Momos',            desc: 'Steamed vegetable dumplings with spicy dip',              price: 90 },
   ];
+
   const nonvegItems = [
-    { name: 'Chicken Biryani', desc: 'Hyderabadi-style dum biryani with tender chicken', price: 180 },
-    { name: 'Mutton Keema', desc: 'Minced mutton with aromatic spices', price: 180 },
-    { name: 'Fish Curry', desc: 'Kerala-style fish in coconut gravy', price: 160 },
-    { name: 'Egg Chicken Roll', desc: 'Spiced chicken and egg wrapped in a flaky roll', price: 90 },
-    { name: 'Chicken Fried Rice', desc: 'Wok-tossed rice with shredded chicken and egg', price: 130 },
-    { name: 'Chicken Shawarma', desc: 'Slow-roasted chicken wrap with garlic mayo', price: 120 },
-    { name: 'Chicken Kothu Parotta', desc: 'Shredded parotta chopped with chicken, egg and curry sauce', price: 140 },
-    { name: 'Egg Kothu Parotta', desc: 'Shredded parotta chopped with egg and spices', price: 110 },
+    { name: 'Chicken Rice',                  desc: 'Flavourful rice cooked with tender chicken pieces',       price: 90  },
+    { name: 'Egg Rice',                      desc: 'Fried rice scrambled with eggs and spices',               price: 60  },
+    { name: 'Chicken Noodles',               desc: 'Stir-fried noodles with shredded chicken',                price: 80  },
+    { name: 'Egg Noodles',                   desc: 'Noodles tossed with egg and soy sauce',                   price: 60  },
+    { name: 'Kothuparota',                   desc: 'Shredded parota chopped with egg, chicken and masala',    price: 90  },
+    { name: 'Egg Burji',                     desc: 'Spiced scrambled eggs with onion and tomato',             price: 50  },
+    { name: 'Double Omlet',                  desc: 'Two-egg omelette with masala filling',                    price: 30  },
+    { name: 'Bread Omlet',                   desc: 'Fluffy omelette served with toasted bread',               price: 35  },
+    { name: 'Chicken Pasta',                 desc: 'Pasta tossed with chicken in a spiced sauce',             price: 90  },
+    { name: 'Chicken 65',                    desc: 'Deep-fried spicy chicken 65 — classic Hyderabadi style',  price: 90  },
+    { name: 'Chicken Curry',                 desc: 'Home-style chicken in a thick onion-tomato gravy',        price: 90  },
+    { name: 'Garlic Chicken',               desc: 'Sautéed chicken with garlic and black pepper',            price: 90  },
+    { name: 'Pepper Chicken',               desc: 'Dry-roasted chicken with cracked black pepper',           price: 90  },
+    { name: 'Butter Chicken',               desc: 'Creamy tomato-butter chicken curry',                      price: 90  },
+    { name: 'Kadai Chicken',                desc: 'Chicken with bell peppers in kadai masala',               price: 90  },
+    { name: 'Chilly Chicken',               desc: 'Indo-Chinese crispy chicken in chilli sauce',             price: 80  },
+    { name: 'Chicken Cheese Garlic Fingers', desc: 'Cheesy garlic chicken fingers — house special',           price: 100 },
   ];
 
   vegItems.forEach((item, i) => {
@@ -109,7 +128,7 @@ export async function seedIfNeeded() {
       price: item.price,
       available: true,
       description: item.desc,
-      slot_time: '07:30-21:30',
+      slot_time: '08:00-23:00',
     });
   });
 
@@ -122,10 +141,11 @@ export async function seedIfNeeded() {
       price: item.price,
       available: true,
       description: item.desc,
-      slot_time: '07:30-21:30',
+      slot_time: '08:00-23:00',
     });
   });
 }
+
 
 // ---- User Operations ----
 export const userStore = {
