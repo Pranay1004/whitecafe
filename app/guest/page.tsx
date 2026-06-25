@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import { sha256Hex } from '@/lib/clientAuth';
 
 export default function GuestPage() {
   const router = useRouter();
@@ -28,11 +29,14 @@ export default function GuestPage() {
     }
 
     try {
+      // Hash the guest PIN client-side before sending over the wire
+      const pinHash = await sha256Hex('guest');
+
       // Authenticate via backend to get a real token for guest
       const loginRes = await fetch('/api/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id: 'guest', pin: 'guest' }),
+        body: JSON.stringify({ id: 'GUEST', pin: pinHash }),
       });
       const loginData = await loginRes.json();
 
@@ -41,6 +45,9 @@ export default function GuestPage() {
         setLoading(false);
         return;
       }
+
+      // Clear any previous session's cart before storing new session
+      localStorage.removeItem('cart');
 
       // Store authentic guest details
       const guestUser = {
@@ -61,6 +68,7 @@ export default function GuestPage() {
       setLoading(false);
     }
   };
+
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-[var(--background)] px-4 py-8">

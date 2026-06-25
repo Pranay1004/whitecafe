@@ -588,7 +588,9 @@ export default function BookingPage() {
                         {/* Parcel Toggle for each Item */}
                         <div className="flex items-center justify-between mt-2 pt-2 border-t border-[var(--border)] border-dashed">
                           <span className="text-xs text-[var(--text-tertiary)]">
-                            Pack as Parcel (+₹5 per unit)
+                            {item.is_parcel
+                              ? `📦 Parcel: +₹${5 * item.quantity} (${item.quantity} × ₹5)`
+                              : `Pack as Parcel (+₹5 per unit)`}
                           </span>
                           <button
                             type="button"

@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import { sha256Hex } from '@/lib/clientAuth';
 
 export default function LoginPage() {
   const router = useRouter();
@@ -18,10 +19,13 @@ export default function LoginPage() {
     setLoading(true);
 
     try {
+      // Hash the PIN client-side before sending over the wire
+      const pinHash = await sha256Hex(pin.trim());
+
       const res = await fetch('/api/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id: id.trim(), pin }),
+        body: JSON.stringify({ id: id.trim(), pin: pinHash }),
       });
 
       const data = await res.json();
@@ -31,6 +35,9 @@ export default function LoginPage() {
         setLoading(false);
         return;
       }
+
+      // Clear any previous session's cart before storing new session
+      localStorage.removeItem('cart');
 
       // Store auth
       localStorage.setItem('token', data.data.token);
@@ -92,26 +99,13 @@ export default function LoginPage() {
             </div>
           </div>
 
-          {/* Demo credentials */}
+          {/* Sign-in instructions — no credentials exposed */}
           <div className="mt-10 p-4 rounded-xl bg-white/5 border border-white/10">
-            <p className="text-slate-400 text-xs font-medium uppercase tracking-wider mb-3">Demo Credentials</p>
-            <div className="space-y-2 text-sm">
-              <div className="flex justify-between">
-                <span className="text-slate-500">Guest:</span>
-                <span className="text-slate-300 font-mono">guest / guest</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-slate-500">Student:</span>
-                <span className="text-slate-300 font-mono">SC25M147 / SC25M147 (or 1234)</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-slate-500">Admin:</span>
-                <span className="text-slate-300 font-mono">ADMIN / 0000</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-slate-500">Staff:</span>
-                <span className="text-slate-300 font-mono">STAFF001 / 5678</span>
-              </div>
+            <p className="text-slate-400 text-xs font-medium uppercase tracking-wider mb-2">How to sign in</p>
+            <div className="space-y-1 text-sm text-slate-400">
+              <p>• <span className="text-slate-300">Students:</span> Use your Roll Number as both your ID and PIN (e.g., SC25M147)</p>
+              <p>• <span className="text-slate-300">Staff / Admin:</span> Contact the system administrator for your credentials</p>
+              <p>• <span className="text-slate-300">Visitors:</span> Use the <Link href="/guest" className="text-amber-400 hover:underline">Guest Booking</Link> option — no account required</p>
             </div>
           </div>
         </div>
@@ -153,7 +147,7 @@ export default function LoginPage() {
           <form onSubmit={handleSubmit} className="space-y-5">
             {/* User ID */}
             <div>
-              <label htmlFor="login-id" className="input-label">User ID</label>
+              <label htmlFor="login-id" className="input-label">User ID / Roll Number</label>
               <input
                 id="login-id"
                 type="text"
@@ -250,22 +244,12 @@ export default function LoginPage() {
             </Link>
           </div>
 
-          {/* Mobile demo credentials */}
+          {/* Mobile sign-in hint — no credentials */}
           <div className="lg:hidden mt-8 p-4 rounded-xl bg-[var(--surface-elevated)] border border-[var(--border)]">
-            <p className="text-[var(--text-tertiary)] text-xs font-medium uppercase tracking-wider mb-3">Demo Credentials</p>
-            <div className="space-y-2 text-sm">
-              <div className="flex justify-between">
-                <span className="text-[var(--text-tertiary)]">Guest:</span>
-                <span className="text-[var(--text-primary)] font-mono text-xs">guest / guest</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-[var(--text-tertiary)]">Student:</span>
-                <span className="text-[var(--text-primary)] font-mono text-xs">SC25M147 / SC25M147</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-[var(--text-tertiary)]">Admin:</span>
-                <span className="text-[var(--text-primary)] font-mono text-xs">ADMIN / 0000</span>
-              </div>
+            <p className="text-[var(--text-tertiary)] text-xs font-medium uppercase tracking-wider mb-2">How to sign in</p>
+            <div className="space-y-1 text-xs text-[var(--text-secondary)]">
+              <p>• <span className="font-medium">Students:</span> Use your Roll Number as both ID and PIN</p>
+              <p>• <span className="font-medium">No account?</span> Tap <span className="text-amber-500">Continue as guest</span> above</p>
             </div>
           </div>
         </div>

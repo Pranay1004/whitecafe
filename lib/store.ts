@@ -4,8 +4,18 @@
 // When Firebase is not configured, the app uses this
 // in-memory store. Data resets on server restart.
 
+import { createHash } from 'crypto';
 import type { User, Booking, MenuItem, AuditEntry } from './types';
 import { hashPin } from './auth';
+
+/**
+ * Compute SHA-256 hex of a string (Node.js side).
+ * The client sends sha256(rawPin) so we must seed bcrypt(sha256(rawPin)).
+ */
+function sha256(text: string): string {
+  return createHash('sha256').update(text).digest('hex');
+}
+
 
 // ---- Storage Collections ----
 const users: Map<string, User> = new Map();
@@ -22,7 +32,7 @@ export async function seedIfNeeded() {
   seeded = true;
 
   // Default admin user
-  const adminHash = await hashPin('0000');
+  const adminHash = await hashPin(sha256('0000'));
   users.set('ADMIN', {
     id: 'ADMIN',
     pin_hash: adminHash,
@@ -36,7 +46,7 @@ export async function seedIfNeeded() {
   });
 
   // Default guest user
-  const guestHash = await hashPin('guest');
+  const guestHash = await hashPin(sha256('guest'));
   users.set('GUEST', {
     id: 'GUEST',
     pin_hash: guestHash,
@@ -50,7 +60,7 @@ export async function seedIfNeeded() {
   });
 
   // Default test student
-  const studentHash = await hashPin('1234');
+  const studentHash = await hashPin(sha256('SC25M147'));
   users.set('SC25M147', {
     id: 'SC25M147',
     pin_hash: studentHash,
@@ -64,7 +74,7 @@ export async function seedIfNeeded() {
   });
 
   // Default test staff
-  const staffHash = await hashPin('5678');
+  const staffHash = await hashPin(sha256('5678'));
   users.set('STAFF001', {
     id: 'STAFF001',
     pin_hash: staffHash,

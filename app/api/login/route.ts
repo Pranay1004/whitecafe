@@ -1,9 +1,18 @@
-// POST /api/login — Authenticate user with ID + PIN
+// POST /api/login — Authenticate user with ID + pre-hashed PIN
+// Security model: client sends sha256(rawPin) via HTTPS.
+// Server stores bcrypt(sha256(rawPin)) and compares with bcrypt.compare().
+// The raw PIN never travels over the network.
 export const runtime = 'nodejs';
 
+import { createHash } from 'crypto';
 import { hashPin, verifyPin, generateToken } from '@/lib/auth';
 import { userStore, seedIfNeeded } from '@/lib/store';
 import type { LoginRequest, ApiResponse, LoginResponse } from '@/lib/types';
+
+/** Server-side SHA-256 used only for student auto-provision path */
+function sha256(text: string): string {
+  return createHash('sha256').update(text).digest('hex');
+}
 
 export async function POST(request: Request) {
   try {
@@ -22,9 +31,11 @@ export async function POST(request: Request) {
 
     // Lookup user
     let user = userStore.get(userId);
+    // Auto-provision: any SC2xxxxx student whose PIN equals sha256(userId)
     if (!user && userId.startsWith('SC2')) {
-      if (body.pin.trim().toUpperCase() === userId) {
-        const pinHash = await hashPin(userId);
+      const expectedHash = sha256(userId);
+      if (body.pin.toLowerCase() === expectedHash) {
+        const pinHash = await hashPin(expectedHash);
         const newUser = {
           id: userId,
           pin_hash: pinHash,
@@ -65,10 +76,16 @@ export async function POST(request: Request) {
       userStore.update(userId, { login_attempts: 0, locked_until: null });
     }
 
-    // Verify PIN
+    // Verify PIN — client already sent sha256(rawPin), bcrypt.compare handles the rest
     let valid = false;
-    if (userId.startsWith('SC2') && body.pin.trim().toUpperCase() === userId) {
-      valid = true;
+    if (userId.startsWith('SC2')) {
+      // Accept either auto-provision sha256 match OR stored bcrypt hash
+      const expectedHash = sha256(userId);
+      if (body.pin.toLowerCase() === expectedHash) {
+        valid = true;
+      } else {
+        valid = await verifyPin(body.pin, user.pin_hash);
+      }
     } else {
       valid = await verifyPin(body.pin, user.pin_hash);
     }

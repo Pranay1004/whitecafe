@@ -25,3 +25,17 @@ export function clearClientSession(): void {
     localStorage.removeItem('cart');
   }
 }
+
+/**
+ * Hash a PIN/password with SHA-256 using the browser's native Web Crypto API.
+ * Returns a lowercase hex string (64 chars).
+ * The server receives this hash, never the raw PIN.
+ */
+export async function sha256Hex(text: string): Promise<string> {
+  const encoder = new TextEncoder();
+  const data = encoder.encode(text);
+  const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+  const hashArray = Array.from(new Uint8Array(hashBuffer));
+  return hashArray.map((b) => b.toString(16).padStart(2, '0')).join('');
+}
+
